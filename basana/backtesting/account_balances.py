@@ -85,3 +85,60 @@ class AccountBalances:
             assert order.operation == orders.OrderOperation.SELL
             symbol = order.pair.base_symbol
         return symbol
+
+class FuturesAccountBalances(AccountBalances):
+    def __init__(self, initial_balances: Dict[str, Decimal]):
+        super().__init__(initial_balances)
+
+
+
+    def calculate_pnl(
+        self,
+        opening_order: orders.Order,
+        closing_order: orders.Order,
+        price: Decimal
+    ) -> Decimal:
+        assert opening_order.is_open, "The opening order is not open"
+        assert closing_order.is_closed, "The closing order is not closed"
+        assert opening_order.pair == closing_order.pair, "The opening and closing orders are for different pairs"
+        assert opening_order.operation != closing_order.operation, "The opening and closing orders have the same operation"
+        assert opening_order.operation == orders.OrderOperation.BUY, "The opening order is not a buy order"
+        assert closing_order.operation == orders.OrderOperation.SELL, "The closing order is not a sell order"
+
+        # Calculate the PnL.
+        amount = min(opening_order.amount, closing_order.amount)
+        opening_price = opening_order.price
+        closing_price = closing_order.price
+        pnl = (closing_price - opening_price) * amount
+        return pnl
+
+    def order_closed(self, order: orders.Order, pnl: Decimal):
+        assert order.id in self._holds_by_order, "The order was not accepted or it was already removed"
+
+        # Release everything that was on hold.
+        hold_updates = {symbol: -amount for symbol, amount in self._holds_by_order.pop(order.id).items()}
+
+        # Update holds for the symbol.
+        self._holds_by_symbol = add_amounts(self._holds_by_symbol, hold_updates)
+
+        # Update balances.
+        balance_updates = {order.pair.quote_symbol: pnl}
+        self._balances = add_amounts(self._balances, balance_updates)
+
+        # Update the order state.
+        order.closed(pnl)
+
+    def order_rejected(self, order: orders.Order):
+        assert order.id in self._holds_by_order, "The order was not accepted or it was already removed"
+
+        # Release everything that was on hold.
+        hold_updates = {symbol: -amount for symbol, amount in self._holds_by_order.pop(order.id).items()}
+
+        # Update holds for the symbol.
+        self._holds_by_symbol = add_amounts(self._holds_by_symbol, hold_updates)
+
+        # Update the order state.
+        order.rejected()
+
+    def _get_hold_symbol(self, order: orders.Order):
+        return order.pair.quote_symbol

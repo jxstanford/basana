@@ -48,3 +48,49 @@ class PairInfo:
 
     #: The precision for the quote symbol.
     quote_precision: int
+
+
+@dataclasses.dataclass(frozen=True)
+class Contract(Pair):
+    """A futures contract.
+
+    This class inherits from the Pair class and sets the quote symbol to "USD" by default.
+    The default values are set for CME ES contracts. The margin requirement can be set based on
+    https://www.interactivebrokers.com/en/trading/margin-futures-fops.php
+    Attributes:
+        base_symbol (str): The base symbol. It could be a stock, a crypto currency, a currency, etc.
+        quote_symbol (str): The quote symbol. It is set to "USD" by default.
+        margin_requirement (float): The intraday margin requirement to initiate a trade. Defaults to 9221.86.
+        price_increment (float): The minimum price increment of the contract. Defaults to 0.25.
+        multiplier (int): The multiplier of the contract. Defaults to 50.
+    """
+
+    #: The intraday margin requirement to initiate a trade.
+    #: TODO: This is a simplification. Model intraday, overnight, initial, maintenance
+    margin_requirement: float
+
+    #: The minimum price increment of the contract.
+    price_increment: float
+
+    #: The multiplier of the contract.
+    multiplier: int
+
+
+@dataclasses.dataclass(frozen=True)
+class ContractInfo(PairInfo):
+    """Information about a futures contract.
+
+    This class inherits from the PairInfo class and provides additional details specific to futures contracts..
+
+    Attributes:
+        base_precision (int): The precision for the base symbol. Defaults to 2.
+        quote_precision (int): The precision for the quote symbol. Defaults to 2.
+    """
+
+    #: The precision for the base symbol.
+    base_precision: int = dataclasses.field(default=2)
+
+    #: The precision for the quote symbol.
+    quote_precision: int = dataclasses.field(default=2)
+
+

@@ -2,6 +2,7 @@
 .idea
 .venv/*
 .vscode
+.python-version
 __pycache__
 cov_html
 data/*
@@ -10,3 +11,6 @@ docs/_build
 docs/generated
 pocs/*
 venv/*
+
+# test files
+samples/data/
