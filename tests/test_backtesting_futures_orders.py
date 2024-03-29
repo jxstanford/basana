@@ -6,8 +6,12 @@ from basana.backtesting import exchange, liquidity
 from basana.core import dt, bar
 from basana.core.enums import OrderOperation
 from basana.core.pair import Contract, ContractInfo
-from basana.backtesting.orders import OrderState, MarketFuturesOrder, LimitFuturesOrder, StopFuturesOrder
-
+from basana.backtesting.orders import (
+    OrderState,
+    MarketFuturesOrder,
+    LimitFuturesOrder,
+    StopFuturesOrder,
+)
 
 
 @pytest.fixture
@@ -53,175 +57,320 @@ def test_stop_futures_order_creation(order_data):
 
 
 @pytest.mark.parametrize(
-    "order, expected_balance_updates", [
+    "order, expected_balance_updates",
+    [
         # Buy market
         (
-            MarketFuturesOrder(uuid4().hex, OrderOperation.BUY, Contract("ES", "USD", 9500, 0.25, 50), Decimal("1"),
-                               OrderState.OPEN),
+            MarketFuturesOrder(
+                uuid4().hex,
+                OrderOperation.BUY,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("1"),
+                OrderState.OPEN,
+            ),
             {
                 "ES": Decimal("1"),
                 "USD": Decimal("-4000.00"),
-            }
+            },
         ),
         # Buy limit
         (
             LimitFuturesOrder(
-                uuid4().hex, OrderOperation.BUY, Contract("ES", "USD", 9500, 0.25, 50), Decimal("1"), Decimal("3999.50"),
-                OrderState.OPEN
+                uuid4().hex,
+                OrderOperation.BUY,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("1"),
+                Decimal("3999.50"),
+                OrderState.OPEN,
             ),
             {
                 "ES": Decimal("1"),
                 "USD": Decimal("-3999.50"),
-            }
+            },
         ),
         # Buy limit uses open price which is better.
         (
             LimitFuturesOrder(
-                uuid4().hex, OrderOperation.BUY, Contract("ES", "USD", 9500, 0.25, 50), Decimal("2"), Decimal("4001.00"),
-                OrderState.OPEN
+                uuid4().hex,
+                OrderOperation.BUY,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("2"),
+                Decimal("4001.00"),
+                OrderState.OPEN,
             ),
             {
                 "ES": Decimal("2"),
                 "USD": Decimal("-8000.00"),
-            }
+            },
         ),
         # Buy limit price not hit.
         (
             LimitFuturesOrder(
-                uuid4().hex, OrderOperation.BUY, Contract("ES", "USD", 9500, 0.25, 50), Decimal("2"), Decimal("3000.00"),
-                OrderState.OPEN
+                uuid4().hex,
+                OrderOperation.BUY,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("2"),
+                Decimal("3000.00"),
+                OrderState.OPEN,
             ),
-            {}
+            {},
         ),
         # Buy stop not hit.
         (
             StopFuturesOrder(
-                uuid4().hex, OrderOperation.BUY, Contract("ES", "USD", 9500, 0.25, 50), Decimal("2"), Decimal("5000.00"),
-                OrderState.OPEN
+                uuid4().hex,
+                OrderOperation.BUY,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("2"),
+                Decimal("5000.00"),
+                OrderState.OPEN,
             ),
-            {}
+            {},
         ),
         # Buy stop hit on open.
         (
             StopFuturesOrder(
-                uuid4().hex, OrderOperation.BUY, Contract("ES", "USD", 9500, 0.25, 50), Decimal("1"),
+                uuid4().hex,
+                OrderOperation.BUY,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("1"),
                 Decimal("4000.00"),
-                OrderState.OPEN
+                OrderState.OPEN,
             ),
             {
                 "ES": Decimal("1"),
                 "USD": Decimal("-4000.00"),
-            }
+            },
         ),
         # Buy stop hit on open.
         (
             StopFuturesOrder(
-                uuid4().hex, OrderOperation.BUY, Contract("ES", "USD", 9500, 0.25, 50), Decimal("1"),
+                uuid4().hex,
+                OrderOperation.BUY,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("1"),
                 Decimal("3999.00"),
-                OrderState.OPEN
+                OrderState.OPEN,
             ),
             {
                 "ES": Decimal("1"),
                 "USD": Decimal("-4000.00"),
-            }
+            },
         ),
         # Buy stop hit after open.
         (
             StopFuturesOrder(
-                uuid4().hex, OrderOperation.BUY, Contract("ES", "USD", 9500, 0.25, 50), Decimal("1"), Decimal("4001.00"),
-                OrderState.OPEN
+                uuid4().hex,
+                OrderOperation.BUY,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("1"),
+                Decimal("4001.00"),
+                OrderState.OPEN,
             ),
             {
                 "ES": Decimal("1"),
                 "USD": Decimal("-4001.00"),
-            }
+            },
         ),
         # Sell market
         (
-            MarketFuturesOrder(uuid4().hex, OrderOperation.SELL, Contract("ES", "USD", 9500, 0.25, 50), Decimal("1"),
-                               OrderState.OPEN),
+            MarketFuturesOrder(
+                uuid4().hex,
+                OrderOperation.SELL,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("1"),
+                OrderState.OPEN,
+            ),
             {
                 "ES": Decimal("-1"),
                 "USD": Decimal("4000"),
-            }
+            },
         ),
         # Sell limit
         (
             LimitFuturesOrder(
-                uuid4().hex, OrderOperation.SELL, Contract("ES", "USD", 9500, 0.25, 50), Decimal("1"),
+                uuid4().hex,
+                OrderOperation.SELL,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("1"),
                 Decimal("4002.00"),
-                OrderState.OPEN
+                OrderState.OPEN,
             ),
             {
                 "ES": Decimal("-1"),
                 "USD": Decimal("4002.00"),
-            }
+            },
         ),
         # Sell limit uses open price which is better.
         (
-                LimitFuturesOrder(
-                    uuid4().hex, OrderOperation.SELL, Contract("ES", "USD", 9500, 0.25, 50), Decimal("2"),
-                    Decimal("3999.00"),
-                    OrderState.OPEN
-                ),
+            LimitFuturesOrder(
+                uuid4().hex,
+                OrderOperation.SELL,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("2"),
+                Decimal("3999.00"),
+                OrderState.OPEN,
+            ),
             {
                 "ES": Decimal("-2"),
                 "USD": Decimal("8000.00"),
-            }
+            },
         ),
         # Sell limit price not hit.
         (
             LimitFuturesOrder(
-                uuid4().hex, OrderOperation.SELL, Contract("ES", "USD", 9500, 0.25, 50), Decimal("1"),
+                uuid4().hex,
+                OrderOperation.SELL,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("1"),
                 Decimal("5000.00"),
-                OrderState.OPEN
+                OrderState.OPEN,
             ),
-            {}
+            {},
         ),
         # Sell stop not hit.
         (
             StopFuturesOrder(
-                uuid4().hex, OrderOperation.SELL, Contract("ES", "USD", 9500, 0.25, 50), Decimal("2"),
+                uuid4().hex,
+                OrderOperation.SELL,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("2"),
                 Decimal("3000.00"),
-                OrderState.OPEN
+                OrderState.OPEN,
             ),
-            {}
+            {},
         ),
         # Sell stop hit on open.
         (
             StopFuturesOrder(
-                uuid4().hex, OrderOperation.SELL, Contract("ES", "USD", 9500, 0.25, 50), Decimal("1"),
-                Decimal("4000.00"), OrderState.OPEN
+                uuid4().hex,
+                OrderOperation.SELL,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("1"),
+                Decimal("4000.00"),
+                OrderState.OPEN,
             ),
             {
                 "ES": Decimal("-1"),
                 "USD": Decimal("4000"),
-            }
+            },
         ),
         # Sell stop hit on open.
         (
             StopFuturesOrder(
-                uuid4().hex, OrderOperation.SELL, Contract("ES", "USD", 9500, 0.25, 50), Decimal("1"),
-                Decimal("4001.00"), OrderState.OPEN
+                uuid4().hex,
+                OrderOperation.SELL,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("1"),
+                Decimal("4001.00"),
+                OrderState.OPEN,
             ),
             {
                 "ES": Decimal("-1"),
                 "USD": Decimal("4000.00"),
-            }
+            },
         ),
-        ]
+    ],
 )
-def test_get_balance_updates_with_infinite_liquidity(order, expected_balance_updates, backtesting_dispatcher):
+def test_get_balance_updates_with_infinite_liquidity(
+    order, expected_balance_updates, backtesting_dispatcher
+):
     e = exchange.Exchange(backtesting_dispatcher, {})  # Just for rounding purposes
     p = Contract("ES", "USD", 9500, 0.25, 50)
     e.set_pair_info(p, ContractInfo())
 
     ls = liquidity.InfiniteLiquidity()
     b = bar.Bar(
-        dt.local_now(), p,
-        Decimal("4000.00"), Decimal("4010.25"), Decimal("3980.75"), Decimal("4001.25"), Decimal("1000")
+        dt.local_now(),
+        p,
+        Decimal("4000.00"),
+        Decimal("4010.25"),
+        Decimal("3980.75"),
+        Decimal("4001.25"),
+        Decimal("1000"),
     )
     balance_updates = order.get_balance_updates(b, ls)
-    # TODO: remove this line when we confirm that rounding isn't necessary
-    # balance_updates = e._round_balance_updates(order.contract, balance_updates)
+    # TODO: need to engage futures style rounding after adapting exchange to futures
+    balance_updates = e._round_balance_updates(order.contract, balance_updates)
+    assert balance_updates == expected_balance_updates
+
+
+@pytest.mark.parametrize(
+    "order, expected_balance_updates",
+    [
+        # Buy market but there is not enough balance.
+        (
+            MarketFuturesOrder(
+                uuid4().hex,
+                OrderOperation.BUY,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("2000"),
+                OrderState.OPEN,
+            ),
+            {},
+        ),
+        # Buy market. Rounding takes place. 250 should be available
+        (
+            MarketFuturesOrder(
+                uuid4().hex,
+                OrderOperation.BUY,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("2"),
+                OrderState.OPEN,
+            ),
+            {
+                "ES": Decimal("2"),
+                "USD": Decimal("-8000.05"),
+            },
+        ),
+        # Sell market. Rounding takes place. 250 should be available
+        (
+            MarketFuturesOrder(
+                uuid4().hex,
+                OrderOperation.SELL,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("2"),
+                OrderState.OPEN,
+            ),
+            {
+                "ES": Decimal("-2"),
+                "USD": Decimal("7999.95"),
+            },
+        ),
+        # Sell stop but there is not enough balance.
+        (
+            StopFuturesOrder(
+                uuid4().hex,
+                OrderOperation.SELL,
+                Contract("ES", "USD", 9500, 0.25, 50),
+                Decimal("1004"),
+                Decimal("4001.00"),
+                OrderState.OPEN,
+            ),
+            {},
+        ),
+    ],
+)
+def test_get_balance_updates_with_finite_liquidity(
+    order, expected_balance_updates, backtesting_dispatcher
+):
+    e = exchange.Exchange(backtesting_dispatcher, {})  # Just for rounding purposes
+    p = Contract("ES", "USD", 9500, 0.25, 50)
+    e.set_pair_info(p, ContractInfo(2, 2))
+
+    ls = liquidity.VolumeShareImpact()
+    b = bar.Bar(
+        dt.local_now(),
+        p,
+        Decimal("4000.00"),
+        Decimal("4100.25"),
+        Decimal("3900.75"),
+        Decimal("3999.50"),
+        Decimal("1000"),
+    )
+    ls.on_bar(b)
+
+    balance_updates = order.get_balance_updates(b, ls)
+    # TODO: need to engage futures style rounding after adapting exchange to futures
+    balance_updates = e._round_balance_updates(order.pair, balance_updates)
     assert balance_updates == expected_balance_updates

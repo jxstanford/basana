@@ -43,3 +43,8 @@ def create_virtualenv(c, all_extras=True):
 def build_docs(c):
     with c.cd("docs"):
         c.run("poetry run -- make html", pty=True)
+
+
+@task
+def format_code(c):
+    c.run("poetry run -- black .", pty=True)

@@ -92,5 +92,3 @@ class ContractInfo(PairInfo):
 
     #: The precision for the quote symbol.
     quote_precision: int = dataclasses.field(default=2)
-
-
