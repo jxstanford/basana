@@ -23,14 +23,15 @@ import asyncio
 import logging
 
 from basana.backtesting import charts
-from basana.external.binance import csv
+from basana.core.pair import Contract, ContractInfo
+from basana.external.common.csv.bars import OHLCVTzBarSource
 import basana as bs
 import basana.backtesting.exchange as backtesting_exchange
 import bbands
 
 
 class PositionManager:
-    def __init__(self, exchange: backtesting_exchange.Exchange, position_amount: Decimal):
+    def __init__(self, exchange: backtesting_exchange.FuturesExchange, position_amount: Decimal):
         assert position_amount > 0
         self._exchange = exchange
         self._position_amount = position_amount
@@ -65,33 +66,31 @@ async def main():
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
 
     event_dispatcher = bs.backtesting_dispatcher()
-    pair = bs.CMEContract("ES")
-    exchange = backtesting_exchange.Exchange(
+    contract = Contract("ES", "USD", 9500, 50)
+    exchange = backtesting_exchange.FuturesExchange(
         event_dispatcher,
         initial_balances={"ES": Decimal(0), "USD": Decimal(100_000)}
     )
-    exchange.set_pair_info(pair, bs.CMEContractInfo(price_increment=0.25, multiplier=50, intraday_initial_margin=9500,
-                                                    intraday_maintenance_margin=8500, overnight_initial_margin=13000,
-                                                    overnight_maintenance_margin=12999))
+    exchange.set_contract_info(contract, ContractInfo(base_precision=0, quote_precision=2, price_increment=0.25))
 
     # Connect the strategy to the bar events from the exchange.
     strategy = bbands.Strategy(event_dispatcher, 10, 1.5)
-    exchange.subscribe_to_bar_events(pair, strategy.on_bar_event)
+    exchange.subscribe_to_bar_events(contract, strategy.on_bar_event)
 
     # Connect the position manager to the strategy signals.
-    position_mgr = PositionManager(exchange, Decimal(1000))
+    position_mgr = PositionManager(exchange, Decimal(1000))  # TODO: what does 1000 mean here?
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
 
     # Load bars from CSV files.
-    exchange.add_bar_source(csv.BarSource(pair, "ES_test2.csv.csv", "1m"))
+    exchange.add_bar_source(OHLCVTzBarSource(contract, "data/ES_test2.csv", "1m"))
 
     # Setup chart.
     chart = charts.LineCharts(exchange)
-    chart.add_pair(pair)
-    chart.add_pair_indicator("Upper", pair, lambda _: strategy.bb[-1].ub if len(strategy.bb) else None)
-    chart.add_pair_indicator("Central", pair, lambda _: strategy.bb[-1].cb if len(strategy.bb) else None)
-    chart.add_pair_indicator("Lower", pair, lambda _: strategy.bb[-1].lb if len(strategy.bb) else None)
-    chart.add_portfolio_value("USDT")
+    chart.add_pair(contract)
+    chart.add_pair_indicator("Upper", contract, lambda _: strategy.bb[-1].ub if len(strategy.bb) else None)
+    chart.add_pair_indicator("Central", contract, lambda _: strategy.bb[-1].cb if len(strategy.bb) else None)
+    chart.add_pair_indicator("Lower", contract, lambda _: strategy.bb[-1].lb if len(strategy.bb) else None)
+    chart.add_portfolio_value("USD")
 
     # Run the backtest.
     await event_dispatcher.run()
