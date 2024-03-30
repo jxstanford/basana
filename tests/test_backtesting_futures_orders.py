@@ -18,7 +18,7 @@ from basana.backtesting.orders import (
 def order_data():
     id = "1"
     operation = OrderOperation.BUY
-    contract = Contract("ES", "USD", 9500, 0.25, 50)
+    contract = Contract("ES", "USD", 9500, 50)
     quantity = Decimal("1")
     state = OrderState.OPEN
     stop_price = Decimal("5000")
@@ -64,7 +64,7 @@ def test_stop_futures_order_creation(order_data):
             MarketFuturesOrder(
                 uuid4().hex,
                 OrderOperation.BUY,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("1"),
                 OrderState.OPEN,
             ),
@@ -78,7 +78,7 @@ def test_stop_futures_order_creation(order_data):
             LimitFuturesOrder(
                 uuid4().hex,
                 OrderOperation.BUY,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("1"),
                 Decimal("3999.50"),
                 OrderState.OPEN,
@@ -93,7 +93,7 @@ def test_stop_futures_order_creation(order_data):
             LimitFuturesOrder(
                 uuid4().hex,
                 OrderOperation.BUY,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("2"),
                 Decimal("4001.00"),
                 OrderState.OPEN,
@@ -108,7 +108,7 @@ def test_stop_futures_order_creation(order_data):
             LimitFuturesOrder(
                 uuid4().hex,
                 OrderOperation.BUY,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("2"),
                 Decimal("3000.00"),
                 OrderState.OPEN,
@@ -120,7 +120,7 @@ def test_stop_futures_order_creation(order_data):
             StopFuturesOrder(
                 uuid4().hex,
                 OrderOperation.BUY,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("2"),
                 Decimal("5000.00"),
                 OrderState.OPEN,
@@ -132,7 +132,7 @@ def test_stop_futures_order_creation(order_data):
             StopFuturesOrder(
                 uuid4().hex,
                 OrderOperation.BUY,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("1"),
                 Decimal("4000.00"),
                 OrderState.OPEN,
@@ -147,7 +147,7 @@ def test_stop_futures_order_creation(order_data):
             StopFuturesOrder(
                 uuid4().hex,
                 OrderOperation.BUY,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("1"),
                 Decimal("3999.00"),
                 OrderState.OPEN,
@@ -162,7 +162,7 @@ def test_stop_futures_order_creation(order_data):
             StopFuturesOrder(
                 uuid4().hex,
                 OrderOperation.BUY,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("1"),
                 Decimal("4001.00"),
                 OrderState.OPEN,
@@ -177,7 +177,7 @@ def test_stop_futures_order_creation(order_data):
             MarketFuturesOrder(
                 uuid4().hex,
                 OrderOperation.SELL,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("1"),
                 OrderState.OPEN,
             ),
@@ -191,7 +191,7 @@ def test_stop_futures_order_creation(order_data):
             LimitFuturesOrder(
                 uuid4().hex,
                 OrderOperation.SELL,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("1"),
                 Decimal("4002.00"),
                 OrderState.OPEN,
@@ -206,7 +206,7 @@ def test_stop_futures_order_creation(order_data):
             LimitFuturesOrder(
                 uuid4().hex,
                 OrderOperation.SELL,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("2"),
                 Decimal("3999.00"),
                 OrderState.OPEN,
@@ -221,7 +221,7 @@ def test_stop_futures_order_creation(order_data):
             LimitFuturesOrder(
                 uuid4().hex,
                 OrderOperation.SELL,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("1"),
                 Decimal("5000.00"),
                 OrderState.OPEN,
@@ -233,7 +233,7 @@ def test_stop_futures_order_creation(order_data):
             StopFuturesOrder(
                 uuid4().hex,
                 OrderOperation.SELL,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("2"),
                 Decimal("3000.00"),
                 OrderState.OPEN,
@@ -245,7 +245,7 @@ def test_stop_futures_order_creation(order_data):
             StopFuturesOrder(
                 uuid4().hex,
                 OrderOperation.SELL,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("1"),
                 Decimal("4000.00"),
                 OrderState.OPEN,
@@ -260,7 +260,7 @@ def test_stop_futures_order_creation(order_data):
             StopFuturesOrder(
                 uuid4().hex,
                 OrderOperation.SELL,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("1"),
                 Decimal("4001.00"),
                 OrderState.OPEN,
@@ -276,8 +276,8 @@ def test_get_balance_updates_with_infinite_liquidity(
     order, expected_balance_updates, backtesting_dispatcher
 ):
     e = exchange.Exchange(backtesting_dispatcher, {})  # Just for rounding purposes
-    p = Contract("ES", "USD", 9500, 0.25, 50)
-    e.set_pair_info(p, ContractInfo())
+    p = Contract("ES", "USD", 9500, 50)
+    e.set_pair_info(p, ContractInfo(2, 2, 0.25))
 
     ls = liquidity.InfiniteLiquidity()
     b = bar.Bar(
@@ -303,7 +303,7 @@ def test_get_balance_updates_with_infinite_liquidity(
             MarketFuturesOrder(
                 uuid4().hex,
                 OrderOperation.BUY,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("2000"),
                 OrderState.OPEN,
             ),
@@ -314,7 +314,7 @@ def test_get_balance_updates_with_infinite_liquidity(
             MarketFuturesOrder(
                 uuid4().hex,
                 OrderOperation.BUY,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("2"),
                 OrderState.OPEN,
             ),
@@ -328,7 +328,7 @@ def test_get_balance_updates_with_infinite_liquidity(
             MarketFuturesOrder(
                 uuid4().hex,
                 OrderOperation.SELL,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("2"),
                 OrderState.OPEN,
             ),
@@ -342,7 +342,7 @@ def test_get_balance_updates_with_infinite_liquidity(
             StopFuturesOrder(
                 uuid4().hex,
                 OrderOperation.SELL,
-                Contract("ES", "USD", 9500, 0.25, 50),
+                Contract("ES", "USD", 9500, 50),
                 Decimal("1004"),
                 Decimal("4001.00"),
                 OrderState.OPEN,
@@ -355,8 +355,8 @@ def test_get_balance_updates_with_finite_liquidity(
     order, expected_balance_updates, backtesting_dispatcher
 ):
     e = exchange.Exchange(backtesting_dispatcher, {})  # Just for rounding purposes
-    p = Contract("ES", "USD", 9500, 0.25, 50)
-    e.set_pair_info(p, ContractInfo(2, 2))
+    p = Contract("ES", "USD", 9500, 50)
+    e.set_pair_info(p, ContractInfo(2, 2, 0.25))
 
     ls = liquidity.VolumeShareImpact()
     b = bar.Bar(

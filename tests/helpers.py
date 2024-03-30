@@ -20,6 +20,8 @@ import json
 import os
 import tempfile
 import time
+import pytest
+from decimal import Decimal
 
 from basana.core import helpers
 
@@ -72,3 +74,27 @@ def temp_file_name(suffix: str = None, delete: bool = True) -> str:
     finally:
         if delete:
             os.remove(tmp_file.name)
+
+
+@pytest.mark.parametrize("value, increment, precision, expected", [
+    (Decimal("1.5"), Decimal("1"), 0, Decimal("2")),
+    (Decimal("1.4"), Decimal("1"), 0, Decimal("1")),
+    (Decimal("1.6"), Decimal("0.5"), 1, Decimal("1.5")),
+    (Decimal("1.75"), Decimal("0.5"), 1, Decimal("2.0")),
+    (Decimal("1.12345"), Decimal("0.00001"), 5, Decimal("1.12345")),
+    (Decimal("1.12345"), Decimal("0.00001"), 4, Decimal("1.1234")),
+    (Decimal("1.770"), Decimal("0.25"), 2, Decimal("1.75")),
+    (Decimal("1.950"), Decimal("0.25"), 2, Decimal("2.00")),
+])
+def test_round_decimal_to_increment(value, increment, precision, expected):
+    assert helpers.round_decimal_to_increment(value, increment, precision) == expected
+
+
+@pytest.mark.parametrize("value, increment, precision", [
+    (Decimal("1.5"), Decimal("0"), 0),
+    (Decimal("1.4"), Decimal("-1"), 0),
+    (Decimal("1.6"), Decimal("0.5"), -1),
+])
+def test_round_decimal_to_increment_invalid_parameters(value, increment, precision):
+    with pytest.raises(ValueError):
+        helpers.round_decimal_to_increment(value, increment, precision)

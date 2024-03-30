@@ -235,9 +235,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Market order canceled due to insufficient funds. Need to tweak the amount to get the order accepted, but
             # to fail as soon as it gets processed.
             (
-                lambda e: e.create_market_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("9649")
-                ),
+                lambda e: e.create_market_order(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("9649")),
                 False, None, Decimal(0)
             ),
         ],
@@ -246,32 +244,26 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
         datetime.date(2000, 1, 3): [
             # Buy market.
             (
-                lambda e: e.create_market_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("2")
-                ),
+                lambda e: e.create_market_order(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("2")),
                 False, Decimal("115.50"), Decimal("0.58")
             ),
             # Limit order within bar.
             (
-                lambda e: e.create_limit_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("4"), Decimal("110.01")
-                ),
+                lambda e: e.create_limit_order(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("4"),
+                                               Decimal("110.01")),
                 False, Decimal("110.01"), Decimal("1.11")
             ),
         ],
         datetime.date(2000, 1, 14): [
             # Sell market.
             (
-                lambda e: e.create_market_order(
-                    exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1")
-                ),
+                lambda e: e.create_market_order(exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1")),
                 False, Decimal("107.87"), Decimal("0.27")
             ),
             # Limit order within bar.
             (
-                lambda e: e.create_limit_order(
-                    exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("108")
-                ),
+                lambda e: e.create_limit_order(exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"),
+                                               Decimal("108")),
                 False, Decimal("108"), Decimal("0.27")
             ),
             # Sell stop.
@@ -342,9 +334,8 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
         datetime.date(2001, 1, 2): [
             # Limit order is filled in multiple bars.
             (
-                lambda e: e.create_limit_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("50"), Decimal("10")
-                ),
+                lambda e: e.create_limit_order(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("50"),
+                                               Decimal("10")),
                 False, Decimal("5.5"), Decimal("0.69")
             ),
         ],
@@ -353,9 +344,8 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
         datetime.date(2000, 1, 3): [
             # Regression test.
             (
-                lambda e: e.create_limit_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("8600"), Decimal("115.50")
-                ),
+                lambda e: e.create_limit_order(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("8600"),
+                                               Decimal("115.50")),
                 False, Decimal("115.50"), Decimal("2483.25")
             ),
         ],

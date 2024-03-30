@@ -18,9 +18,9 @@ from basana.core import pair
 
 
 def test_str():
-    assert str(pair.Contract("ES", "USD", 9500, 0.25, 50)) == "ES/USD"
+    assert str(pair.Contract("ES", "USD", 9500, 50)) == "ES/USD"
 
 
 def test_eq():
-    assert pair.Contract("ES", "USD", 9500, 0.25, 50) == pair.Contract("ES", "USD", 9500, 0.25, 50)
-    assert pair.Contract("ES", "USD", 9500, 0.25, 50) != pair.Contract("NQ", "USD", 9500, 0.10, 10)
+    assert pair.Contract("ES", "USD", 9500, 50) == pair.Contract("ES", "USD", 9500, 50)
+    assert pair.Contract("ES", "USD", 9500, 50) != pair.Contract("NQ", "USD", 9500, 10)

@@ -30,7 +30,7 @@ def test_order_gets_completed():
     assert balances.get_balance_on_hold_for_order("1", "USD") == Decimal(0)
 
     order = orders.MarketFuturesOrder(
-        "1", orders.OrderOperation.BUY, pair.Contract("ES", "USD", 1000, 0.25, 50), Decimal("1"), orders.OrderState.OPEN
+        "1", orders.OrderOperation.BUY, pair.Contract("ES", "USD", 1000, 50), Decimal("1"), orders.OrderState.OPEN
     )
     balances.order_accepted(order, {"USD": Decimal("2100")})
 
@@ -104,24 +104,18 @@ def test_order_gets_canceled():
 
 
 def test_symbols():
-    balances = account_balances.AccountBalances({"USD": Decimal(10000)})
+    balances = account_balances.FuturesAccountBalances({"USD": Decimal(8000)})
     assert balances.get_symbols() == ["USD"]
 
-    order = orders.MarketOrder(
-        "1", orders.OrderOperation.BUY, pair.Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN
+    order = orders.MarketFuturesOrder(
+        "1", orders.OrderOperation.BUY, pair.Contract("ES", "USD", 9500, 50), Decimal("2"), orders.OrderState.OPEN
     )
-    balances.order_accepted(order, {"USD": Decimal("2100")})
+    balances.order_accepted(order, {"USD": Decimal("8000")})
     assert balances.get_symbols() == ["USD"]
 
-    order.add_fill(dt.utc_now(), {"BTC": Decimal("0.05"), "USD": Decimal("-5000")}, {})
-    balances.order_updated(order, {"BTC": Decimal("0.05"), "USD": Decimal("-5000")})
+    order.add_fill(dt.utc_now(), {"ES": Decimal("1"), "USD": Decimal("-4000")}, {})
+    balances.order_updated(order, {"ES": Decimal("1"), "USD": Decimal("-4000")})
     symbols = balances.get_symbols()
     symbols.sort()
-    assert symbols == ["BTC", "USD"]
-
-    order.add_fill(dt.utc_now(), {"BTC": Decimal("0.05"), "USD": Decimal("-5000")}, {})
-    balances.order_updated(order, {"BTC": Decimal("0.05"), "USD": Decimal("-5000")})
-    symbols = balances.get_symbols()
-    symbols.sort()
-    assert symbols == ["BTC", "USD"]
+    assert symbols == ["ES", "USD"]
     assert balances.get_available_balance("USD") == 0

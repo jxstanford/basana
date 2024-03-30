@@ -389,17 +389,12 @@ def test_cancel_order(bitstamp_http_api_mock, bitstamp_exchange):
 
 @pytest.mark.parametrize("create_order_fun, expected_op, expected_amount, expected_price, expected_id", [
     (
-        lambda e: e.create_market_order(
-            exchange.OrderOperation.BUY, pair.Pair("BTC", "PAX"), Decimal("0.00100000"),
-            client_order_id="51557545381C4997BC452AE1E48E0D88"
-        ),
+        lambda e: e.create_market_order(exchange.OrderOperation.BUY, pair.Pair("BTC", "PAX"), Decimal("0.00100000")),
         exchange.OrderOperation.BUY, Decimal("0.00100000"), Decimal("19381"), "1539419698798592"
     ),
     (
-        lambda e: e.create_limit_order(
-            exchange.OrderOperation.BUY, pair.Pair("BTC", "PAX"), Decimal("1"), Decimal("10"),
-            client_order_id="51557545381C4997BC452AE1E48E0D88"
-        ),
+        lambda e: e.create_limit_order(exchange.OrderOperation.BUY, pair.Pair("BTC", "PAX"), Decimal("1"),
+                                       Decimal("10")),
         exchange.OrderOperation.BUY, Decimal("1"), Decimal("10"), "1538955091660800"
     ),
     (
