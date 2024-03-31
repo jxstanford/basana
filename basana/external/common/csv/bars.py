@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Sequence
+from typing import Sequence, Tuple
 import datetime
 
 from basana.core import pair, event, bar
@@ -46,6 +46,20 @@ period_to_timedelta = {
 }
 
 
+def sanitize_ohlc(open: Decimal, high: Decimal, low: Decimal, close: Decimal) -> Tuple[
+    Decimal, Decimal, Decimal, Decimal
+]:
+    if low > open:
+        low = open
+    if low > close:
+        low = close
+    if high < open:
+        high = open
+    if high < close:
+        high = close
+    return open, high, low, close
+
+
 class RowParser(csv.RowParser):
     def __init__(
             self, pair: pair.Pair, tzinfo: datetime.tzinfo, timedelta: datetime.timedelta
@@ -53,6 +67,7 @@ class RowParser(csv.RowParser):
         self.pair = pair
         self.tzinfo = tzinfo
         self.timedelta = timedelta
+        self.sanitize = False
 
     def parse_row(self, row_dict: dict) -> Sequence[event.Event]:
         # File format:
@@ -60,18 +75,23 @@ class RowParser(csv.RowParser):
         # datetime,open,high,low,close,volume
         # 2015-01-01 00:00:00,321,321,321,321,1.73697242
 
-        volume = Decimal(row_dict["volume"])
+        open, high, low, close, volume = (
+            Decimal(row_dict["open"]), Decimal(row_dict["high"]), Decimal(row_dict["low"]), Decimal(row_dict["close"]),
+            Decimal(row_dict["volume"])
+        )
         # Skip bars with no volume.
         if volume == 0:
             return []
 
         dt = datetime.datetime.strptime(row_dict["datetime"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=self.tzinfo)
+        if self.sanitize:
+            open, high, low, close = sanitize_ohlc(open, high, low, close)
+
         return [
             bar.BarEvent(
                 dt + self.timedelta,
                 bar.Bar(
-                    dt, self.pair, Decimal(row_dict["open"]), Decimal(row_dict["high"]), Decimal(row_dict["low"]),
-                    Decimal(row_dict["close"]), volume
+                    dt, self.pair, open, high, low, close, volume
                 )
             )
         ]
@@ -83,25 +103,31 @@ class OHLCVTzRowParser(csv.RowParser):
     ):
         self.pair = pair
         self.timedelta = timedelta
+        self.sanitize = False
 
     def parse_row(self, row_dict: dict) -> Sequence[event.Event]:
         # File format:
         #
         # datetime,open,high,low,close,volume
-        # 2015-01-01 00:00:00+00:00,321,321,321,321,1.73697242
+        # 2015-01-01 00:00:00+00:00,321,321,321,321,1000
 
-        volume = Decimal(row_dict["volume"])
+        open, high, low, close, volume = (
+            Decimal(row_dict["open"]), Decimal(row_dict["high"]), Decimal(row_dict["low"]), Decimal(row_dict["close"]),
+            Decimal(row_dict["volume"])
+        )
         # Skip bars with no volume.
         if volume == 0:
             return []
 
         dt = datetime.datetime.strptime(row_dict["datetime"], "%Y-%m-%d %H:%M:%S%z")
+        if self.sanitize:
+            open, high, low, close = sanitize_ohlc(open, high, low, close)
+
         return [
             bar.BarEvent(
                 dt + self.timedelta,
                 bar.Bar(
-                    dt, self.pair, Decimal(row_dict["open"]), Decimal(row_dict["high"]), Decimal(row_dict["low"]),
-                    Decimal(row_dict["close"]), volume
+                    dt, self.pair, open, high, low, close, volume
                 )
             )
         ]

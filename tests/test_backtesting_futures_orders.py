@@ -255,19 +255,19 @@ def test_stop_futures_order_creation(order_data):
                 "USD": Decimal("4000"),
             },
         ),
-        # Sell stop hit on open.
+        # Sell stop hit after open.
         (
             StopFuturesOrder(
                 uuid4().hex,
                 OrderOperation.SELL,
                 Contract("ES", "USD", 9500, 50),
                 Decimal("1"),
-                Decimal("4001.00"),
+                Decimal("3999.00"),
                 OrderState.OPEN,
             ),
             {
                 "ES": Decimal("-1"),
-                "USD": Decimal("4000.00"),
+                "USD": Decimal("3999.00"),
             },
         ),
     ],

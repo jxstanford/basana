@@ -28,6 +28,7 @@ from basana.backtesting import exchange, fees, orders, requests
 from basana.core import bar, dt, event, helpers
 from basana.core.pair import Contract, ContractInfo
 from basana.external.yahoo import bars
+from basana.external.common.csv.bars import OHLCVTzBarSource
 
 
 def build_bar(dt, pair, open, high, low, close, adj_close, volume, adjust_ohlc):
@@ -103,6 +104,8 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         order_info = await e.get_order_info(created_order.id)
         assert order_info is not None
         assert not order_info.is_open
+        # assert that the order.quote_quantity_filled is 1
+        assert e._orders.get_order(created_order.id).quote_quantity_filled == Decimal("0")
 
         with pytest.raises(exchange.Error):
             await e.cancel_order(created_order.id)
@@ -165,6 +168,14 @@ def test_cancel_nonexistent_order(backtesting_dispatcher):
     asyncio.run(impl())
 
 
+class MyFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        ct = datetime.datetime.fromtimestamp(record.created, tz=tz.tzutc())
+        t = ct.strftime("%Y-%m-%dT%H:%M:%S")
+        s = "%s.%03d%s" % (t, record.msecs, ct.strftime("%z"))
+        return s
+
+
 def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, caplog):
     caplog.set_level(logging.INFO)
 
@@ -173,9 +184,9 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
     buff = io.StringIO()
     ch = logging.StreamHandler(stream=buff)
     ch.setLevel(logging.INFO)
-    ch.setFormatter(
-        logging.Formatter("[%(asctime)s %(levelname)s %(name)s] %(message)s")
-    )
+    ch.setFormatter(MyFormatter("[%(asctime)s %(levelname)s %(name)s] %(message)s"))
+    # ch.setFormatter(logging.Formatter("[%(asctime)s %(levelname)s %(name)s] %(message)s"))
+
     logger.addHandler(ch)
 
     bar_events = []
@@ -195,7 +206,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
         )
         c = Contract("ES", "USD", 9500, 50)
         e.add_bar_source(
-            bars.CSVBarSource(c, abs_data_path("orcl-2001-yahoo.csv"), sort=True)
+            OHLCVTzBarSource(c, abs_data_path("ES-2024-01-02-1m.csv"), period='1m', sort=True)
         )
         e.subscribe_to_bar_events(c, on_bar)
 
@@ -206,20 +217,20 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
         assert abs(diff.total_seconds()) > 60
 
         assert bar_events[0].when == datetime.datetime(
-            2001,
+            2024,
             1,
             2,
-            hour=23,
-            minute=59,
+            hour=0,
+            minute=0,
             second=59,
             microsecond=999999,
-            tzinfo=tz.tzlocal(),
+            tzinfo=datetime.timezone.utc,
         )
-        assert bar_events[0].bar.open == Decimal("29.56")
-        assert bar_events[0].bar.high == Decimal("29.75")
-        assert bar_events[0].bar.low == Decimal("25.62")
-        assert bar_events[0].bar.close == Decimal("26.37")
-        assert bar_events[0].bar.volume == Decimal("46285300")
+        assert bar_events[0].bar.open == Decimal("4820.75")
+        assert bar_events[0].bar.high == Decimal("4820.75")
+        assert bar_events[0].bar.low == Decimal("4820.50")
+        assert bar_events[0].bar.close == Decimal("4820.75")
+        assert bar_events[0].bar.volume == Decimal("192")
 
     asyncio.run(impl())
 
@@ -228,8 +239,8 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
     buff.seek(0)
     output = buff.read()
 
-    assert "2001-01-02 23:59:59,999 INFO" in output
-    assert "2001-12-31 23:59:59,999 INFO" in output
+    assert "2024-01-02T00:00:59.999+0000 INFO" in output
+    assert "2024-01-02T08:51:59.999+0000 INFO" in output
 
 
 @pytest.mark.parametrize(
