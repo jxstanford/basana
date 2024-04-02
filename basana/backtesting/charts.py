@@ -31,6 +31,7 @@ from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
 import plotly.graph_objects as go  # type: ignore
+import plotly.offline as pyo  # type: ignore
 import plotly.subplots  # type: ignore
 
 
@@ -97,7 +98,7 @@ class PairLineChart(LineChart):
         if self._include_buys:
             x, y = self._get_order_fills(OrderOperation.BUY).get_x_y()
             figure.add_trace(
-                go.Scatter(x=x, y=y, name="Buy", mode="markers", marker=dict(symbol="arrow-up")),
+                go.Scatter(x=x, y=y, name="Buy", mode="markers", marker=dict(symbol="arrow-up", size=12)),
                 row=row, col=1
             )
 
@@ -105,7 +106,7 @@ class PairLineChart(LineChart):
         if self._include_sells:
             x, y = self._get_order_fills(OrderOperation.SELL).get_x_y()
             figure.add_trace(
-                go.Scatter(x=x, y=y, name="Sell", mode="markers", marker=dict(symbol="arrow-down")),
+                go.Scatter(x=x, y=y, name="Sell", mode="markers", marker=dict(symbol="arrow-down", size=12)),
                 row=row, col=1
             )
 
@@ -297,7 +298,7 @@ class LineCharts:
             self._custom_charts[name] = chart
         chart.add_data_point_fn(line, get_data_point)
 
-    def show(self, show_legend: bool = True):  # pragma: no cover
+    def show(self, show_legend: bool = True, filename='temp-plot.html'):  # pragma: no cover
         """Shows the chart using either the default renderer(s).
 
         Check https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html#plotly.graph_objects.Figure.show
@@ -307,7 +308,8 @@ class LineCharts:
         """  # noqa: E501
 
         if fig := self._build_figure(show_legend=show_legend):
-            fig.show()
+            # fig.show()
+            pyo.plot(fig, filename=filename, auto_open=True)
 
     def save(
             self, path: str, width: Optional[int] = None, height: Optional[int] = None,
