@@ -31,35 +31,48 @@ import bbands
 
 
 class PositionManager:
-    def __init__(self, exchange: backtesting_exchange.FuturesExchange, position_amount: Decimal):
-        assert position_amount > 0
+    def __init__(self, exchange: backtesting_exchange.FuturesExchange, target_trade_size: Decimal,
+                 max_position_size: Decimal):
+        assert target_trade_size > 0
+        assert max_position_size >= target_trade_size
         self._exchange = exchange
-        self._position_amount = position_amount
+        self._target_trade_size = target_trade_size
+        self._max_position_size = max_position_size
 
     async def on_trading_signal(self, trading_signal: bs.TradingSignal):
-        logging.info("Trading signal: operation=%s pair=%s", trading_signal.operation, trading_signal.pair)
+        logging.info("Trading signal: operation=%s contract=%s", trading_signal.operation,
+                     trading_signal.pair)
         try:
             # Calculate the order size.
-            balances = await self._exchange.get_balances()
-            if trading_signal.operation == bs.OrderOperation.BUY:
-                _, ask = await self._exchange.get_bid_ask(trading_signal.pair)
-                balance = balances[trading_signal.pair.quote_symbol]
-                order_size = min(self._position_amount, balance.available) / ask
-            else:
-                balance = balances[trading_signal.pair.base_symbol]
-                order_size = balance.available
-            pair_info = await self._exchange.get_pair_info(trading_signal.pair)
-            order_size = bs.truncate_decimal(order_size, pair_info.base_precision)
+            order_size = await self._adjusted_order_size(trading_signal)
             if not order_size:
                 return
-
             logging.info(
-                "Creating %s market order for %s: amount=%s", trading_signal.operation, trading_signal.pair,
-                order_size
-            )
+                "Creating %s market order for %s: amount=%s", trading_signal.operation,
+                trading_signal.pair,
+                order_size)
+
             await self._exchange.create_market_order(trading_signal.operation, trading_signal.pair, order_size)
         except Exception as e:
             logging.error(e)
+
+    async def _adjusted_order_size(self, trading_signal: bs.TradingSignal) -> Decimal:
+        operation = trading_signal.operation
+        symbol = trading_signal.pair.base_symbol
+        balance = await self._exchange.get_balance(symbol)
+        balance = balance.available
+        target_position_size = self._target_trade_size
+        max_position_size = self._max_position_size
+        order_size = target_position_size
+
+        if operation == bs.OrderOperation.SELL:
+            balance *= -1
+
+        if balance + target_position_size < target_position_size:
+            order_size = target_position_size + abs(balance)
+        elif balance + target_position_size > max_position_size:
+            order_size = max_position_size - abs(balance)
+        return order_size
 
 
 async def main():
@@ -78,11 +91,11 @@ async def main():
     exchange.subscribe_to_bar_events(contract, strategy.on_bar_event)
 
     # Connect the position manager to the strategy signals.
-    position_mgr = PositionManager(exchange, Decimal(1000))  # TODO: what does 1000 mean here?
+    position_mgr = PositionManager(exchange, Decimal(1), Decimal(1))
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
 
     # Load bars from CSV files.
-    exchange.add_bar_source(OHLCVTzBarSource(contract, "data/ES_test2.csv", "1m"))
+    exchange.add_bar_source(OHLCVTzBarSource(contract, "data/ES_0102224_rth.csv", "1m"))
 
     # Setup chart.
     chart = charts.LineCharts(exchange)

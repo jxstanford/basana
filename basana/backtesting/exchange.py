@@ -581,9 +581,7 @@ class Exchange:
 
     def _check_available_balance(self, required_balance: Dict[str, Decimal]):
         for symbol, required in required_balance.items():
-            assert required > Decimal(
-                0
-            ), f"Invalid required balance {required} for {symbol}"
+            assert required >= Decimal(0), f"Invalid required balance {required} for {symbol}"
             available_balance = self._balances.get_available_balance(symbol)
             if available_balance < required:
                 raise errors.Error(
@@ -693,8 +691,9 @@ class FuturesExchange(Exchange):
         order_request.validate(contract_info)
 
         # Check balances.
+        # TODO: Implement the margin requirement and fee estimation
         required_balances = await self._estimate_required_balances(order_request)
-        self._check_available_balance(required_balances)
+        # self._check_available_balance(required_balances)
 
         # Create and accept the order.
         order = order_request.create_order(uuid.uuid4().hex)
@@ -780,3 +779,137 @@ class FuturesExchange(Exchange):
         return await self.create_order(
             requests.StopFuturesOrder(operation, contract, quantity, stop_price)
         )
+
+    # TODO: Implement the margin requirement and fee estimation
+    async def _estimate_required_balances(
+            self, order_request: requests.ExchangeOrder
+    ) -> Dict[str, Decimal]:
+        # Build a dictionary of balance updates suitable for calculating fees.
+        base_sign = bt_helpers.get_base_sign_for_operation(order_request.operation)
+        estimated_balance_updates = {
+            order_request.pair.base_symbol: order_request.amount * base_sign
+        }
+        estimated_fill_price = order_request.get_estimated_fill_price()
+        if not estimated_fill_price:
+            estimated_fill_price = await self._get_last_price(order_request.pair)
+        if estimated_fill_price:
+            estimated_balance_updates[order_request.pair.quote_symbol] = (
+                    order_request.amount * estimated_fill_price * -base_sign
+            )
+        estimated_balance_updates = self._round_balance_updates(
+            order_request.pair, estimated_balance_updates
+        )
+
+        # Calculate fees.
+        fees = {}
+        if len(estimated_balance_updates) == 2:
+            order = order_request.create_order("temporary")
+            fees = self._fee_strategy.calculate_fees(order, estimated_balance_updates)
+            fees = self._round_fees(order_request.pair, fees)
+        estimated_balance_updates = bt_helpers.add_amounts(
+            estimated_balance_updates, fees
+        )
+
+        # Return only negative balance updates as required balances.
+        return {
+            symbol: -amount
+            for symbol, amount in estimated_balance_updates.items()
+            if amount < Decimal(0)
+        }
+
+    def _process_order(
+        self,
+        order: orders.Order,
+        bar_event: bar.BarEvent,
+        liquidity_strategy: liquidity.LiquidityStrategy,
+    ):
+        def order_not_filled():
+            order.not_filled()
+            # Update balances to release any pending hold if the order is no longer open.
+            if not order.is_open:
+                self._balances.order_updated(order, {})
+                logger.debug(
+                    logs.StructuredMessage(
+                        "Order not filled", order_id=order.id, order_state=order.state
+                    )
+                )
+
+        prev_state = order.state
+        balance_updates = order.get_balance_updates(bar_event.bar, liquidity_strategy)
+        assert (
+            order.state == prev_state
+        ), "The order state should not change inside get_balance_updates"
+
+        # If there are no balance updates then there is nothing left to do.
+        if not balance_updates:
+            order_not_filled()
+            return
+
+        # Sanity checks. Base and quote amounts should be there.
+        base_sign = bt_helpers.get_base_sign_for_operation(order.operation)
+        assert_has_value(balance_updates, order.pair.base_symbol, base_sign)
+        assert_has_value(balance_updates, order.pair.quote_symbol, -base_sign)
+
+        # If base/quote amounts were removed after rounding then there is nothing left to do.
+        # TODO: this needs to round to nearest multiple of price increment. Override and fix.
+        balance_updates = self._round_balance_updates(order.pair, balance_updates)
+        logger.debug(
+            logs.StructuredMessage(
+                "Processing order", order_id=order.id, balance_updates=balance_updates
+            )
+        )
+        if (
+            order.pair.base_symbol not in balance_updates
+            or order.pair.quote_symbol not in balance_updates
+        ):
+            order_not_filled()
+            return
+
+        # Get fees, round them, and combine them with the balance updates.
+        fees = self._fee_strategy.calculate_fees(order, balance_updates)
+        fees = self._round_fees(order.pair, fees)
+        logger.debug(
+            logs.StructuredMessage("Processing order", order_id=order.id, fees=fees)
+        )
+        final_updates = bt_helpers.add_amounts(balance_updates, fees)
+        final_updates = bt_helpers.remove_empty_amounts(final_updates)
+
+        # Check if we're short on any balance.
+        balances_short = False
+        # for symbol, balance_update in final_updates.items():
+        #     available_balance = self._balances.get_available_balance(
+        #         symbol
+        #     ) + self._balances.get_balance_on_hold_for_order(order.id, symbol)
+        #     final_balance = available_balance + balance_update
+        #     if final_balance < Decimal(0):
+        #         balances_short = True
+        #         logger.debug(
+        #             logs.StructuredMessage(
+        #                 "Balance short processing order",
+        #                 order_id=order.id,
+        #                 symbol=symbol,
+        #                 short=final_balance,
+        #             )
+        #         )
+        #         break
+
+        # Update, or fail.
+        if not balances_short:
+            # Update the liquidity strategy.
+            liquidity_strategy.take_liquidity(
+                abs(balance_updates[bar_event.bar.pair.base_symbol])
+            )
+            # Update the order.
+            order.add_fill(bar_event.when, balance_updates, fees)
+            # Update balances.
+            self._balances.order_updated(order, final_updates)
+            logger.debug(
+                logs.StructuredMessage(
+                    "Order updated",
+                    order_id=order.id,
+                    final_updates=final_updates,
+                    order_state=order.state,
+                )
+            )
+        else:
+            order_not_filled()
