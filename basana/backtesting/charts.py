@@ -298,7 +298,7 @@ class LineCharts:
             self._custom_charts[name] = chart
         chart.add_data_point_fn(line, get_data_point)
 
-    def show(self, show_legend: bool = True, filename='temp-plot.html'):  # pragma: no cover
+    def show(self, show_legend: bool = True):
         """Shows the chart using either the default renderer(s).
 
         Check https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html#plotly.graph_objects.Figure.show
@@ -308,8 +308,7 @@ class LineCharts:
         """  # noqa: E501
 
         if fig := self._build_figure(show_legend=show_legend):
-            # fig.show()
-            pyo.plot(fig, filename=filename, auto_open=True)
+            fig.show()
 
     def save(
             self, path: str, width: Optional[int] = None, height: Optional[int] = None,
