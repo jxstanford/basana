@@ -500,10 +500,7 @@ class Exchange:
                 "Processing order", order_id=order.id, balance_updates=balance_updates
             )
         )
-        if (
-            order.pair.base_symbol not in balance_updates
-            or order.pair.quote_symbol not in balance_updates
-        ):
+        if (order.pair.base_symbol not in balance_updates or order.pair.quote_symbol not in balance_updates):
             order_not_filled()
             return
 
@@ -606,9 +603,9 @@ class Exchange:
         if not estimated_fill_price:
             estimated_fill_price = await self._get_last_price(order_request.pair)
         if estimated_fill_price:
-            estimated_balance_updates[order_request.pair.quote_symbol] = (
-                order_request.amount * estimated_fill_price * -base_sign
-            )
+            estimated_balance_updates[order_request.pair.quote_symbol] = (order_request.amount * estimated_fill_price *
+                                                                          -base_sign)
+
         estimated_balance_updates = self._round_balance_updates(
             order_request.pair, estimated_balance_updates
         )
@@ -693,7 +690,7 @@ class FuturesExchange(Exchange):
         # Check balances.
         # TODO: Implement the margin requirement and fee estimation
         required_balances = await self._estimate_required_balances(order_request)
-        # self._check_available_balance(required_balances)
+        self._check_available_balance(required_balances)
 
         # Create and accept the order.
         order = order_request.create_order(uuid.uuid4().hex)
@@ -782,18 +779,40 @@ class FuturesExchange(Exchange):
 
     # TODO: Implement the margin requirement and fee estimation
     async def _estimate_required_balances(
-            self, order_request: requests.ExchangeOrder
+            self, order_request: requests.FuturesExchangeOrder
     ) -> Dict[str, Decimal]:
+        """
+        Checks margin requirements and fees and returns an estimate of the required balances.
+        Determins if an order is opening, closing, or both. Closing order only require fees while opening
+        orders require margin and fees. Orders can be a mix of opening and closing quantities.
+
+        TODO: also need to determine where to store margin hold and release them when closing orders.
+        """
         # Build a dictionary of balance updates suitable for calculating fees.
+        trade_side_quantities = bt_helpers.get_trade_side_quantities(
+            self._balances.get_available_balance(order_request.contract.base_symbol),
+            order_request.operation,
+            order_request.quantity,
+        )
+
+        # we need to find the fill price of the N orders that we're closing
+        if trade_side_quantities["closing"] > 0:
+            # filter all orders by symbol
+            # TODO: not sure if this will work due to different types
+            orders = [order for order in self._get_all_orders() if order.pair == order_request.contract]
+            all_orders_by_date = sorted(self._get_all_orders(), key=lambda x: x.created_at)
+            all_orders_by_date
+
+
         base_sign = bt_helpers.get_base_sign_for_operation(order_request.operation)
         estimated_balance_updates = {
-            order_request.pair.base_symbol: order_request.amount * base_sign
+            order_request.contract.base_symbol: order_request.quantity * base_sign
         }
         estimated_fill_price = order_request.get_estimated_fill_price()
         if not estimated_fill_price:
-            estimated_fill_price = await self._get_last_price(order_request.pair)
+            estimated_fill_price = await self._get_last_price(order_request.contract)
         if estimated_fill_price:
-            estimated_balance_updates[order_request.pair.quote_symbol] = (
+            estimated_balance_updates[order_request.contract.quote_symbol] = (
                     order_request.amount * estimated_fill_price * -base_sign
             )
         estimated_balance_updates = self._round_balance_updates(

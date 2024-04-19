@@ -31,7 +31,6 @@ from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
 import plotly.graph_objects as go  # type: ignore
-import plotly.offline as pyo  # type: ignore
 import plotly.subplots  # type: ignore
 
 

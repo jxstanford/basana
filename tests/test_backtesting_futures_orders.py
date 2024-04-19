@@ -12,6 +12,7 @@ from basana.backtesting.orders import (
     LimitFuturesOrder,
     StopFuturesOrder,
 )
+from basana.backtesting.helpers import get_trade_side_quantities, get_base_sign_for_operation
 
 
 @pytest.fixture
@@ -54,6 +55,35 @@ def test_stop_futures_order_creation(order_data):
     assert order.contract == contract
     assert order.quantity == quantity
     assert order.state == state
+
+
+def test_get_trade_side_quantities():
+
+    quantity = Decimal("10")
+
+    # Test from zero position, should be all opening
+    current_position = Decimal("0")
+    for operation in [OrderOperation.BUY, OrderOperation.SELL]:
+        trade_side_quantities = get_trade_side_quantities(current_position, operation, quantity)
+        assert trade_side_quantities == {'opening_quantity': quantity, 'closing_quantity': Decimal('0')}
+
+    # Test from same-signed position, should be all opening
+    for operation in [OrderOperation.BUY, OrderOperation.SELL]:
+        current_position = Decimal("10") * get_base_sign_for_operation(operation)
+        trade_side_quantities = get_trade_side_quantities(current_position, operation, quantity)
+        assert trade_side_quantities == {'opening_quantity': quantity, 'closing_quantity': Decimal('0')}
+
+    # Test from opposite-signed position >= quantity, should be all closing
+    for operation in [OrderOperation.BUY, OrderOperation.SELL]:
+        current_position = Decimal("10") * -get_base_sign_for_operation(operation)
+        trade_side_quantities = get_trade_side_quantities(current_position, operation, quantity)
+        assert trade_side_quantities == {'opening_quantity': Decimal('0'), 'closing_quantity': quantity}
+
+    # Test from opposite-signed position < quantity, should be both opening and closing
+    for operation in [OrderOperation.BUY, OrderOperation.SELL]:
+        current_position = Decimal("8") * -get_base_sign_for_operation(operation)
+        trade_side_quantities = get_trade_side_quantities(current_position, operation, quantity)
+        assert trade_side_quantities == {'opening_quantity': Decimal('2'), 'closing_quantity': Decimal('8')}
 
 
 @pytest.mark.parametrize(
