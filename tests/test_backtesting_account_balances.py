@@ -30,7 +30,11 @@ def test_order_gets_completed():
     assert balances.get_balance_on_hold_for_order("1", "USD") == Decimal(0)
 
     order = orders.MarketOrder(
-        "1", orders.OrderOperation.BUY, pair.Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN
+        "1",
+        orders.OrderOperation.BUY,
+        pair.Pair("BTC", "USD"),
+        Decimal("0.1"),
+        orders.OrderState.OPEN,
     )
     balances.order_accepted(order, {"USD": Decimal("2100")})
 
@@ -75,7 +79,11 @@ def test_order_gets_canceled():
     assert balances.get_balance_on_hold_for_order("1", "USD") == Decimal(0)
 
     order = orders.MarketOrder(
-        "1", orders.OrderOperation.BUY, pair.Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN
+        "1",
+        orders.OrderOperation.BUY,
+        pair.Pair("BTC", "USD"),
+        Decimal("0.1"),
+        orders.OrderState.OPEN,
     )
     balances.order_accepted(order, {"USD": Decimal("2100")})
 
@@ -108,7 +116,11 @@ def test_symbols():
     assert balances.get_symbols() == ["USD"]
 
     order = orders.MarketOrder(
-        "1", orders.OrderOperation.BUY, pair.Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN
+        "1",
+        orders.OrderOperation.BUY,
+        pair.Pair("BTC", "USD"),
+        Decimal("0.1"),
+        orders.OrderState.OPEN,
     )
     balances.order_accepted(order, {"USD": Decimal("2100")})
     assert balances.get_symbols() == ["USD"]

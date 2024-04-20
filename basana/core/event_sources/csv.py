@@ -35,7 +35,9 @@ class RowParser(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-def load_sort_and_yield(csv_path: str, row_parser: RowParser, dict_reader_kwargs: dict = {}):
+def load_sort_and_yield(
+    csv_path: str, row_parser: RowParser, dict_reader_kwargs: dict = {}
+):
     events = []
 
     # Load events.
@@ -63,7 +65,13 @@ def load_and_yield(csv_path: str, row_parser: RowParser, dict_reader_kwargs: dic
 
 
 class EventSource(event.EventSource, event.Producer):
-    def __init__(self, csv_path: str, row_parser: RowParser, sort: bool = True, dict_reader_kwargs: dict = {}):
+    def __init__(
+        self,
+        csv_path: str,
+        row_parser: RowParser,
+        sort: bool = True,
+        dict_reader_kwargs: dict = {},
+    ):
         super().__init__(producer=self)
         self._csv_path = csv_path
         self._row_parser = row_parser
@@ -73,9 +81,13 @@ class EventSource(event.EventSource, event.Producer):
 
     async def initialize(self):
         if self._sort:
-            self._row_it = load_sort_and_yield(self._csv_path, self._row_parser, self._dict_reader_kwargs)
+            self._row_it = load_sort_and_yield(
+                self._csv_path, self._row_parser, self._dict_reader_kwargs
+            )
         else:
-            self._row_it = load_and_yield(self._csv_path, self._row_parser, self._dict_reader_kwargs)
+            self._row_it = load_and_yield(
+                self._csv_path, self._row_parser, self._dict_reader_kwargs
+            )
 
     async def finalize(self):
         self._row_it = None

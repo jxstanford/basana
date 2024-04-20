@@ -75,23 +75,47 @@ class CSVWriter:
         if not self._header_written:
             print("datetime,open,high,low,close,volume")
             self._header_written = True
-        print(",".join([
-            str(datetime.datetime.utcfromtimestamp(candlestick.open_timestamp / 1000)),
-            candlestick.open, candlestick.high, candlestick.low, candlestick.close, candlestick.volume
-        ]))
+        print(
+            ",".join(
+                [
+                    str(
+                        datetime.datetime.utcfromtimestamp(
+                            candlestick.open_timestamp / 1000
+                        )
+                    ),
+                    candlestick.open,
+                    candlestick.high,
+                    candlestick.low,
+                    candlestick.close,
+                    candlestick.volume,
+                ]
+            )
+        )
 
 
 async def main(params: Optional[List[str]] = None, config_overrides: dict = {}):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--currency-pair", help="The currency pair.", required=True)
     parser.add_argument(
-        "-p", "--period", help="The period for the bars.", choices=period_to_step.keys(), required=True
+        "-c", "--currency-pair", help="The currency pair.", required=True
     )
     parser.add_argument(
-        "-s", "--start", help="The starting date YYYY-MM-DD format. Included in the range.", required=True
+        "-p",
+        "--period",
+        help="The period for the bars.",
+        choices=period_to_step.keys(),
+        required=True,
     )
     parser.add_argument(
-        "-e", "--end", help="The ending date YYYY-MM-DD format. Included in the range.", required=True
+        "-s",
+        "--start",
+        help="The starting date YYYY-MM-DD format. Included in the range.",
+        required=True,
+    )
+    parser.add_argument(
+        "-e",
+        "--end",
+        help="The ending date YYYY-MM-DD format. Included in the range.",
+        required=True,
     )
     args = parser.parse_args(args=params)
 
@@ -110,19 +134,28 @@ async def main(params: Optional[List[str]] = None, config_overrides: dict = {}):
     now_ts = helpers.datetime_to_timestamp(dt.utc_now())
     writer = CSVWriter()
     async with aiohttp.ClientSession() as session:
-        cli = client.APIClient(session=session, tb=tb, config_overrides=config_overrides)
+        cli = client.APIClient(
+            session=session, tb=tb, config_overrides=config_overrides
+        )
         eof = False
         currency_pair = to_binance_currency_pair(args.currency_pair)
         while not eof:
             response = await cli.get_candlestick_data(
-                currency_pair, args.period, start_time=start_ts, end_time=past_the_end_ts, limit=1000
+                currency_pair,
+                args.period,
+                start_time=start_ts,
+                end_time=past_the_end_ts,
+                limit=1000,
             )
             eof = True
             for candlestick in response:
                 eof = False
                 candlestick = Candlestick(candlestick)
                 start_ts = max(start_ts, candlestick.open_timestamp)
-                if candlestick.open_timestamp >= past_the_end_ts or candlestick.close_timestamp >= now_ts:
+                if (
+                    candlestick.open_timestamp >= past_the_end_ts
+                    or candlestick.close_timestamp >= now_ts
+                ):
                     continue
                 writer.write_candlestick(candlestick)
             if not eof:

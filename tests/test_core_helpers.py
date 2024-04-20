@@ -21,11 +21,14 @@ import pytest
 from basana.core import helpers
 
 
-@pytest.mark.parametrize("pool_size, task_count", [
-    (1, 1),
-    (1, 2),
-    (10, 200),
-])
+@pytest.mark.parametrize(
+    "pool_size, task_count",
+    [
+        (1, 1),
+        (1, 2),
+        (10, 200),
+    ],
+)
 def test_task_pool(pool_size, task_count):
     task_calls = 0
 

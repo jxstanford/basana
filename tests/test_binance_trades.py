@@ -40,8 +40,8 @@ TRADE_MSG = {
         "a": 16081955890,
         "T": 1669932275174,
         "m": False,
-        "M": True
-    }
+        "M": True,
+    },
 }
 
 
@@ -78,7 +78,9 @@ def test_websocket_ok(realtime_dispatcher):
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
             config_overrides = {"api": {"websockets": {"base_url": ws_uri}}}
-            e = exchange.Exchange(realtime_dispatcher, config_overrides=config_overrides)
+            e = exchange.Exchange(
+                realtime_dispatcher, config_overrides=config_overrides
+            )
             e.subscribe_to_trade_events(p, on_trade_event)
 
             await realtime_dispatcher.run()
@@ -87,7 +89,9 @@ def test_websocket_ok(realtime_dispatcher):
 
     assert last_trade is not None
     assert last_trade.pair == p
-    assert last_trade.datetime == datetime.datetime(2022, 12, 1, 22, 4, 35, 174000, tzinfo=datetime.timezone.utc)
+    assert last_trade.datetime == datetime.datetime(
+        2022, 12, 1, 22, 4, 35, 174000, tzinfo=datetime.timezone.utc
+    )
     assert last_trade.id == "2275696344"
     assert last_trade.buy_order_id == "16081955917"
     assert last_trade.sell_order_id == "16081955890"

@@ -21,7 +21,9 @@ import basana as bs
 
 # Strategy based on Bollinger Bands: https://www.investopedia.com/articles/trading/07/bollinger.asp
 class Strategy(bs.TradingSignalSource):
-    def __init__(self, dispatcher: bs.EventDispatcher, period: int, std_dev_multiplier: float):
+    def __init__(
+        self, dispatcher: bs.EventDispatcher, period: int, std_dev_multiplier: float
+    ):
         super().__init__(dispatcher)
         self.bb = BB(period, std_dev_multiplier)
         self._values = (None, None)
@@ -40,7 +42,15 @@ class Strategy(bs.TradingSignalSource):
 
         # Price moved below lower band ?
         if self._values[-2] >= self.bb[-2].lb and self._values[-1] < self.bb[-1].lb:
-            self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair))
+            self.push(
+                bs.TradingSignal(
+                    bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair
+                )
+            )
         # Price moved above upper band ?
         elif self._values[-2] <= self.bb[-2].ub and self._values[-1] > self.bb[-1].ub:
-            self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair))
+            self.push(
+                bs.TradingSignal(
+                    bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair
+                )
+            )

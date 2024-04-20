@@ -27,18 +27,25 @@ from basana.core.pair import Pair
 from basana.external.yahoo import bars
 
 
-@pytest.mark.parametrize("order_plan", [
-    {
-        datetime.date(2000, 1, 3): [
-            # Buy market.
-            lambda e: e.create_market_order(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("2")),
-        ],
-        datetime.date(2000, 1, 14): [
-            # Sell market.
-            lambda e: e.create_market_order(exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1")),
-        ],
-    },
-])
+@pytest.mark.parametrize(
+    "order_plan",
+    [
+        {
+            datetime.date(2000, 1, 3): [
+                # Buy market.
+                lambda e: e.create_market_order(
+                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("2")
+                ),
+            ],
+            datetime.date(2000, 1, 14): [
+                # Sell market.
+                lambda e: e.create_market_order(
+                    exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1")
+                ),
+            ],
+        },
+    ],
+)
 def test_save_line_chart(order_plan, backtesting_dispatcher, caplog):
     e = exchange.Exchange(
         backtesting_dispatcher,
@@ -51,7 +58,9 @@ def test_save_line_chart(order_plan, backtesting_dispatcher, caplog):
     line_charts = charts.LineCharts(e)
     line_charts.add_pair(pair)
     line_charts.add_balance("USD")
-    line_charts.add_pair_indicator("CONSTANT", pair, charts.DataPointFromSequence([100]))
+    line_charts.add_pair_indicator(
+        "CONSTANT", pair, charts.DataPointFromSequence([100])
+    )
     line_charts.add_portfolio_value("USD")
     line_charts.add_portfolio_value("INVALID")
     line_charts.add_custom("CUSTOM", "line_name", lambda _: 3)
@@ -63,7 +72,9 @@ def test_save_line_chart(order_plan, backtesting_dispatcher, caplog):
             assert created_order is not None
 
     async def impl():
-        e.add_bar_source(bars.CSVBarSource(pair, helpers.abs_data_path("orcl-2000-yahoo-sorted.csv")))
+        e.add_bar_source(
+            bars.CSVBarSource(pair, helpers.abs_data_path("orcl-2000-yahoo-sorted.csv"))
+        )
         e.subscribe_to_bar_events(pair, on_bar)
 
         await backtesting_dispatcher.run()

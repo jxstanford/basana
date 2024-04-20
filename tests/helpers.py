@@ -50,13 +50,17 @@ async def wait_until(condition, timeout=10, retry_after=0.25):
 
 
 async def wait_caplog(text, caplog, timeout=10, retry_after=0.25):
-    return await wait_until(lambda: text in caplog.text, timeout=timeout, retry_after=retry_after)
+    return await wait_until(
+        lambda: text in caplog.text, timeout=timeout, retry_after=retry_after
+    )
 
 
 def assert_expected_attrs(object, expected):
     for key, expected_value in expected.items():
         actual_value = getattr(object, key)
-        assert actual_value == expected_value, "Mismatch in {}. {} != {}".format(key, actual_value, expected_value)
+        assert actual_value == expected_value, "Mismatch in {}. {} != {}".format(
+            key, actual_value, expected_value
+        )
 
 
 def is_sorted(seq):
@@ -76,25 +80,31 @@ def temp_file_name(suffix: str = None, delete: bool = True) -> str:
             os.remove(tmp_file.name)
 
 
-@pytest.mark.parametrize("value, increment, precision, expected", [
-    (Decimal("1.5"), Decimal("1"), 0, Decimal("2")),
-    (Decimal("1.4"), Decimal("1"), 0, Decimal("1")),
-    (Decimal("1.6"), Decimal("0.5"), 1, Decimal("1.5")),
-    (Decimal("1.75"), Decimal("0.5"), 1, Decimal("2.0")),
-    (Decimal("1.12345"), Decimal("0.00001"), 5, Decimal("1.12345")),
-    (Decimal("1.12345"), Decimal("0.00001"), 4, Decimal("1.1234")),
-    (Decimal("1.770"), Decimal("0.25"), 2, Decimal("1.75")),
-    (Decimal("1.950"), Decimal("0.25"), 2, Decimal("2.00")),
-])
+@pytest.mark.parametrize(
+    "value, increment, precision, expected",
+    [
+        (Decimal("1.5"), Decimal("1"), 0, Decimal("2")),
+        (Decimal("1.4"), Decimal("1"), 0, Decimal("1")),
+        (Decimal("1.6"), Decimal("0.5"), 1, Decimal("1.5")),
+        (Decimal("1.75"), Decimal("0.5"), 1, Decimal("2.0")),
+        (Decimal("1.12345"), Decimal("0.00001"), 5, Decimal("1.12345")),
+        (Decimal("1.12345"), Decimal("0.00001"), 4, Decimal("1.1234")),
+        (Decimal("1.770"), Decimal("0.25"), 2, Decimal("1.75")),
+        (Decimal("1.950"), Decimal("0.25"), 2, Decimal("2.00")),
+    ],
+)
 def test_round_decimal_to_increment(value, increment, precision, expected):
     assert helpers.round_decimal_to_increment(value, increment, precision) == expected
 
 
-@pytest.mark.parametrize("value, increment, precision", [
-    (Decimal("1.5"), Decimal("0"), 0),
-    (Decimal("1.4"), Decimal("-1"), 0),
-    (Decimal("1.6"), Decimal("0.5"), -1),
-])
+@pytest.mark.parametrize(
+    "value, increment, precision",
+    [
+        (Decimal("1.5"), Decimal("0"), 0),
+        (Decimal("1.4"), Decimal("-1"), 0),
+        (Decimal("1.6"), Decimal("0.5"), -1),
+    ],
+)
 def test_round_decimal_to_increment_invalid_parameters(value, increment, precision):
     with pytest.raises(ValueError):
         helpers.round_decimal_to_increment(value, increment, precision)

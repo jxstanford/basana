@@ -23,6 +23,7 @@ from .client import margin as margin_client
 
 class Account(margin.Account):
     """Cross margin account."""
+
     def __init__(self, cli: margin_client.CrossMarginAccount):
         self._cli = cli
 
@@ -33,7 +34,10 @@ class Account(margin.Account):
     async def get_balances(self) -> Dict[str, margin.Balance]:
         """Returns all balances."""
         account_info = await self.client.get_account_information()
-        return {balance["asset"].upper(): margin.Balance(balance) for balance in account_info["userAssets"]}
+        return {
+            balance["asset"].upper(): margin.Balance(balance)
+            for balance in account_info["userAssets"]
+        }
 
     async def transfer_from_spot_account(self, asset: str, amount: Decimal) -> dict:
         """Transfer balances from the spot account to the cross margin account.

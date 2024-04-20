@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 class Missing:
     pass
 
@@ -28,7 +29,9 @@ def _get_config_value_impl(config: dict, path: str, default=None):
             ret = current_dict.get(key, default)
         else:
             current_dict = current_dict.get(key, {})
-            assert isinstance(current_dict, dict), f"Element at {key} is not a dictionary"
+            assert isinstance(
+                current_dict, dict
+            ), f"Element at {key} is not a dictionary"
     return ret
 
 

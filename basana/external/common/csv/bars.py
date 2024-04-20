@@ -46,9 +46,9 @@ period_to_timedelta = {
 }
 
 
-def sanitize_ohlc(open: Decimal, high: Decimal, low: Decimal, close: Decimal) -> Tuple[
-    Decimal, Decimal, Decimal, Decimal
-]:
+def sanitize_ohlc(
+    open: Decimal, high: Decimal, low: Decimal, close: Decimal
+) -> Tuple[Decimal, Decimal, Decimal, Decimal]:
     if low > open:
         low = open
     if low > close:
@@ -62,7 +62,7 @@ def sanitize_ohlc(open: Decimal, high: Decimal, low: Decimal, close: Decimal) ->
 
 class RowParser(csv.RowParser):
     def __init__(
-            self, pair: pair.Pair, tzinfo: datetime.tzinfo, timedelta: datetime.timedelta
+        self, pair: pair.Pair, tzinfo: datetime.tzinfo, timedelta: datetime.timedelta
     ):
         self.pair = pair
         self.tzinfo = tzinfo
@@ -76,31 +76,32 @@ class RowParser(csv.RowParser):
         # 2015-01-01 00:00:00,321,321,321,321,1.73697242
 
         open, high, low, close, volume = (
-            Decimal(row_dict["open"]), Decimal(row_dict["high"]), Decimal(row_dict["low"]), Decimal(row_dict["close"]),
-            Decimal(row_dict["volume"])
+            Decimal(row_dict["open"]),
+            Decimal(row_dict["high"]),
+            Decimal(row_dict["low"]),
+            Decimal(row_dict["close"]),
+            Decimal(row_dict["volume"]),
         )
         # Skip bars with no volume.
         if volume == 0:
             return []
 
-        dt = datetime.datetime.strptime(row_dict["datetime"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=self.tzinfo)
+        dt = datetime.datetime.strptime(
+            row_dict["datetime"], "%Y-%m-%d %H:%M:%S"
+        ).replace(tzinfo=self.tzinfo)
         if self.sanitize:
             open, high, low, close = sanitize_ohlc(open, high, low, close)
 
         return [
             bar.BarEvent(
                 dt + self.timedelta,
-                bar.Bar(
-                    dt, self.pair, open, high, low, close, volume
-                )
+                bar.Bar(dt, self.pair, open, high, low, close, volume),
             )
         ]
 
 
 class OHLCVTzRowParser(csv.RowParser):
-    def __init__(
-            self, pair: pair.Pair, timedelta: datetime.timedelta
-    ):
+    def __init__(self, pair: pair.Pair, timedelta: datetime.timedelta):
         self.pair = pair
         self.timedelta = timedelta
         self.sanitize = False
@@ -112,8 +113,11 @@ class OHLCVTzRowParser(csv.RowParser):
         # 2015-01-01 00:00:00+00:00,321,321,321,321,1000
 
         open, high, low, close, volume = (
-            Decimal(row_dict["open"]), Decimal(row_dict["high"]), Decimal(row_dict["low"]), Decimal(row_dict["close"]),
-            Decimal(row_dict["volume"])
+            Decimal(row_dict["open"]),
+            Decimal(row_dict["high"]),
+            Decimal(row_dict["low"]),
+            Decimal(row_dict["close"]),
+            Decimal(row_dict["volume"]),
         )
         # Skip bars with no volume.
         if volume == 0:
@@ -126,22 +130,25 @@ class OHLCVTzRowParser(csv.RowParser):
         return [
             bar.BarEvent(
                 dt + self.timedelta,
-                bar.Bar(
-                    dt, self.pair, open, high, low, close, volume
-                )
+                bar.Bar(dt, self.pair, open, high, low, close, volume),
             )
         ]
 
 
 class OHLCVTzBarSource(csv.EventSource):
     def __init__(
-            self, pair: pair.Pair, csv_path: str, period: str,
-            sort: bool = False,
-            dict_reader_kwargs: dict = {}
+        self,
+        pair: pair.Pair,
+        csv_path: str,
+        period: str,
+        sort: bool = False,
+        dict_reader_kwargs: dict = {},
     ):
         # The datetime in the files are the beginning of the period but we need to generate the event at the period's
         # end.
         timedelta = period_to_timedelta.get(period)
         assert timedelta is not None, "Invalid period"
         self.row_parser = OHLCVTzRowParser(pair, timedelta=timedelta)
-        super().__init__(csv_path, self.row_parser, sort=sort, dict_reader_kwargs=dict_reader_kwargs)
+        super().__init__(
+            csv_path, self.row_parser, sort=sort, dict_reader_kwargs=dict_reader_kwargs
+        )

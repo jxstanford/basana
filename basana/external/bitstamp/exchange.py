@@ -22,7 +22,15 @@ import enum
 from dateutil.parser import parse as dt_parse
 import aiohttp
 
-from . import client, helpers, requests, order_book, orders, trades, websockets as bitstamp_ws
+from . import (
+    client,
+    helpers,
+    requests,
+    order_book,
+    orders,
+    trades,
+    websockets as bitstamp_ws,
+)
 from basana.core import bar, dispatcher, event, token_bucket, websockets as core_ws
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair, PairInfo
@@ -309,7 +317,11 @@ class CreatedOrder:
 
 class RealTimeTradesToBar(bar.RealTimeTradesToBar):
     async def on_trade_event(self, trade_event: trades.TradeEvent):
-        self.push_trade(trade_event.trade.datetime, trade_event.trade.price, trade_event.trade.amount)
+        self.push_trade(
+            trade_event.trade.datetime,
+            trade_event.trade.price,
+            trade_event.trade.amount,
+        )
 
 
 class Exchange:
@@ -323,15 +335,26 @@ class Exchange:
     :param tb: An optional token bucket limiter, in case you want to throttle requests.
     :param config_overrides: An optional dictionary for overriding config settings.
     """
+
     def __init__(
-            self, dispatcher: dispatcher.EventDispatcher, api_key: Optional[str] = None,
-            api_secret: Optional[str] = None, session: Optional[aiohttp.ClientSession] = None,
-            tb: Optional[token_bucket.TokenBucketLimiter] = None, config_overrides: dict = {}
+        self,
+        dispatcher: dispatcher.EventDispatcher,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        session: Optional[aiohttp.ClientSession] = None,
+        tb: Optional[token_bucket.TokenBucketLimiter] = None,
+        config_overrides: dict = {},
     ):
         self._dispatcher = dispatcher
         self._api_key = api_key
         self._api_secret = api_secret
-        self._cli = client.APIClient(api_key, api_secret, session=session, tb=tb, config_overrides=config_overrides)
+        self._cli = client.APIClient(
+            api_key,
+            api_secret,
+            session=session,
+            tb=tb,
+            config_overrides=config_overrides,
+        )
         self._session = session
         self._tb = tb
         self._config_overrides = config_overrides
@@ -339,7 +362,9 @@ class Exchange:
         self._priv_websocket: Optional[bitstamp_ws.PrivateWebSocketClient] = None
         self._channel_to_event_source: Dict[str, event.EventSource] = {}
         self._pair_info_cache: Dict[Pair, PairInfo] = {}
-        self._bar_event_source: Dict[Tuple[Pair, int, bool, float], RealTimeTradesToBar] = {}
+        self._bar_event_source: Dict[
+            Tuple[Pair, int, bool, float], RealTimeTradesToBar
+        ] = {}
 
     async def get_balance(self, symbol: str) -> Balance:
         """Returns the balance for a specific currency/symbol/etc..
@@ -362,7 +387,10 @@ class Exchange:
         bs_pairs_info = await self._cli.get_trading_pairs_info()
         for bs_pair_info in bs_pairs_info:
             pair = Pair(*bs_pair_info["name"].split("/"))
-            pair_info = PairInfo(int(bs_pair_info["base_decimals"]), int(bs_pair_info["counter_decimals"]))
+            pair_info = PairInfo(
+                int(bs_pair_info["base_decimals"]),
+                int(bs_pair_info["counter_decimals"]),
+            )
             self._pair_info_cache[pair] = pair_info
 
     async def get_pair_info(self, pair: Pair) -> PairInfo:
@@ -379,8 +407,12 @@ class Exchange:
         return CreatedOrder(created_order)
 
     async def create_market_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, client_order_id: Optional[str] = None,
-            **kwargs: Dict[str, Any]
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        client_order_id: Optional[str] = None,
+        **kwargs: Dict[str, Any]
     ) -> CreatedOrder:
         """Creates a market order.
 
@@ -392,13 +424,20 @@ class Exchange:
         :param client_order_id: A client order id.
         :param kwargs: Additional keyword arguments that will be forwarded.
         """
-        return await self.create_order(requests.MarketOrder(
-            operation, pair, amount, client_order_id=client_order_id, **kwargs
-        ))
+        return await self.create_order(
+            requests.MarketOrder(
+                operation, pair, amount, client_order_id=client_order_id, **kwargs
+            )
+        )
 
     async def create_limit_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        limit_price: Decimal,
+        client_order_id: Optional[str] = None,
+        **kwargs: Dict[str, Any]
     ) -> CreatedOrder:
         """Creates a limit order.
 
@@ -411,13 +450,25 @@ class Exchange:
         :param client_order_id: A client order id.
         :param kwargs: Additional keyword arguments that will be forwarded.
         """
-        return await self.create_order(requests.LimitOrder(
-            operation, pair, amount, limit_price, client_order_id=client_order_id, **kwargs
-        ))
+        return await self.create_order(
+            requests.LimitOrder(
+                operation,
+                pair,
+                amount,
+                limit_price,
+                client_order_id=client_order_id,
+                **kwargs
+            )
+        )
 
     async def create_instant_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, amount_in_counter: bool = False,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        amount_in_counter: bool = False,
+        client_order_id: Optional[str] = None,
+        **kwargs: Dict[str, Any]
     ) -> CreatedOrder:
         """Creates an instant order.
 
@@ -431,9 +482,16 @@ class Exchange:
         :param client_order_id: A client order id.
         :param kwargs: Additional keyword arguments that will be forwarded.
         """
-        return await self.create_order(requests.InstantOrder(
-            operation, pair, amount, amount_in_counter=amount_in_counter, client_order_id=client_order_id, **kwargs
-        ))
+        return await self.create_order(
+            requests.InstantOrder(
+                operation,
+                pair,
+                amount,
+                amount_in_counter=amount_in_counter,
+                client_order_id=client_order_id,
+                **kwargs
+            )
+        )
 
     async def cancel_order(self, order_id: Union[str, int]) -> CanceledOrder:
         """Cancels an order.
@@ -446,7 +504,10 @@ class Exchange:
         return CanceledOrder(canceled_order)
 
     async def get_order_info(
-            self, pair: Pair, order_id: Optional[Union[str, int]] = None, client_order_id: Optional[str] = None,
+        self,
+        pair: Pair,
+        order_id: Optional[Union[str, int]] = None,
+        client_order_id: Optional[str] = None,
     ) -> Optional[OrderInfo]:
         """Returns information about an order.
 
@@ -460,14 +521,18 @@ class Exchange:
           * For closed orders, this call only returns information for the last 30 days.
         """
         ret = None
-        order_status = await self.get_order_status(order_id=order_id, client_order_id=client_order_id)
+        order_status = await self.get_order_status(
+            order_id=order_id, client_order_id=client_order_id
+        )
         if order_status:
             ret = OrderInfo(pair, order_status)
         return ret
 
     async def get_order_status(
-            self, order_id: Optional[Union[str, int]] = None, client_order_id: Optional[str] = None,
-            omit_transactions: Optional[bool] = None
+        self,
+        order_id: Optional[Union[str, int]] = None,
+        client_order_id: Optional[str] = None,
+        omit_transactions: Optional[bool] = None,
     ) -> Optional[OrderStatus]:
         if order_id is not None:
             order_id = int(order_id)
@@ -475,7 +540,9 @@ class Exchange:
         ret = None
         try:
             order_status = await self._cli.get_order_status(
-                id=order_id, client_order_id=client_order_id, omit_transactions=omit_transactions
+                id=order_id,
+                client_order_id=client_order_id,
+                omit_transactions=omit_transactions,
             )
             ret = OrderStatus(order_status)
         except client.Error as e:
@@ -499,8 +566,12 @@ class Exchange:
         return {balance["currency"].upper(): Balance(balance) for balance in balances}
 
     def subscribe_to_bar_events(
-            self, pair: Pair, bar_duration: int, event_handler: BarEventHandler, skip_first_bar: bool = True,
-            flush_delay: float = 1
+        self,
+        pair: Pair,
+        bar_duration: int,
+        event_handler: BarEventHandler,
+        skip_first_bar: bool = True,
+        flush_delay: float = 1,
     ):
         """Registers an async callable that will be called when a new bar is available.
 
@@ -520,13 +591,20 @@ class Exchange:
         event_source = self._bar_event_source.get(key)
         if not event_source:
             event_source = RealTimeTradesToBar(
-                pair, bar_duration, skip_first_bar=skip_first_bar, flush_delay=flush_delay
+                pair,
+                bar_duration,
+                skip_first_bar=skip_first_bar,
+                flush_delay=flush_delay,
             )
             self.subscribe_to_public_trade_events(pair, event_source.on_trade_event)
             self._bar_event_source[key] = event_source
-        self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
+        self._dispatcher.subscribe(
+            event_source, cast(dispatcher.EventHandler, event_handler)
+        )
 
-    def subscribe_to_order_book_events(self, pair: Pair, event_handler: OrderBookEventHandler):
+    def subscribe_to_order_book_events(
+        self, pair: Pair, event_handler: OrderBookEventHandler
+    ):
         """Registers an async callable that will be called when the order book is updated.
 
         :param pair: The trading pair.
@@ -538,11 +616,15 @@ class Exchange:
         """
         channel = order_book.get_channel(pair)
         self._subscribe_to_ws_channel_events(
-            channel, True, lambda ws_cli: order_book.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            channel,
+            True,
+            lambda ws_cli: order_book.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler),
         )
 
-    def subscribe_to_public_order_events(self, pair: Pair, event_handler: OrderEventHandler):
+    def subscribe_to_public_order_events(
+        self, pair: Pair, event_handler: OrderEventHandler
+    ):
         """Registers an async callable that will be called when any order is updated.
 
         :param pair: The trading pair.
@@ -550,11 +632,15 @@ class Exchange:
         """
         channel = orders.get_public_channel(pair)
         self._subscribe_to_ws_channel_events(
-            channel, True, lambda ws_cli: orders.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            channel,
+            True,
+            lambda ws_cli: orders.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler),
         )
 
-    def subscribe_to_private_order_events(self, pair: Pair, event_handler: OrderEventHandler):
+    def subscribe_to_private_order_events(
+        self, pair: Pair, event_handler: OrderEventHandler
+    ):
         """Registers an async callable that will be called when your own orders are updated.
 
         :param pair: The trading pair.
@@ -562,11 +648,15 @@ class Exchange:
         """
         channel = orders.get_private_channel(pair)
         self._subscribe_to_ws_channel_events(
-            channel, False, lambda ws_cli: orders.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            channel,
+            False,
+            lambda ws_cli: orders.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler),
         )
 
-    def subscribe_to_public_trade_events(self, pair: Pair, event_handler: TradeEventHandler):
+    def subscribe_to_public_trade_events(
+        self, pair: Pair, event_handler: TradeEventHandler
+    ):
         """Registers an async callable that will be called for any new trade.
 
         :param pair: The trading pair.
@@ -574,11 +664,15 @@ class Exchange:
         """
         channel = trades.get_public_channel(pair)
         self._subscribe_to_ws_channel_events(
-            channel, True, lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            channel,
+            True,
+            lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler),
         )
 
-    def subscribe_to_private_trade_events(self, pair: Pair, event_handler: TradeEventHandler):
+    def subscribe_to_private_trade_events(
+        self, pair: Pair, event_handler: TradeEventHandler
+    ):
         """Registers an async callable that will be called for your own new trades.
 
         :param pair: The trading pair.
@@ -586,14 +680,20 @@ class Exchange:
         """
         channel = trades.get_private_channel(pair)
         self._subscribe_to_ws_channel_events(
-            channel, False, lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            channel,
+            False,
+            lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def _subscribe_to_ws_channel_events(
-            self, channel: str, is_public: bool,
-            event_src_factory: Callable[[core_ws.WebSocketClient], core_ws.ChannelEventSource],
-            event_handler: dispatcher.EventHandler
+        self,
+        channel: str,
+        is_public: bool,
+        event_src_factory: Callable[
+            [core_ws.WebSocketClient], core_ws.ChannelEventSource
+        ],
+        event_handler: dispatcher.EventHandler,
     ):
         # Get/create the event source for the channel.
         ws_cli = self._get_pub_ws_client() if is_public else self._get_priv_ws_client()
@@ -617,6 +717,9 @@ class Exchange:
 
         if self._priv_websocket is None:
             self._priv_websocket = bitstamp_ws.PrivateWebSocketClient(
-                self._api_key, self._api_secret, session=self._session, config_overrides=self._config_overrides
+                self._api_key,
+                self._api_secret,
+                session=self._session,
+                config_overrides=self._config_overrides,
             )
         return self._priv_websocket

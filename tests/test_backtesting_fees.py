@@ -19,19 +19,27 @@ from decimal import Decimal
 from basana.backtesting import fees, orders
 from basana.backtesting.exchange import OrderOperation
 from basana.core import dt
-from basana.core.pair import Pair
+from basana.core.pair import Pair, Contract
 
 
 def test_percentage_fee_with_partial_fills():
     fee_strategy = fees.Percentage(Decimal("1"))
-    order = orders.MarketOrder("1", OrderOperation.BUY, Pair("BTC", "USD"), Decimal("0.01"), orders.OrderState.OPEN)
+    order = orders.MarketOrder(
+        "1",
+        OrderOperation.BUY,
+        Pair("BTC", "USD"),
+        Decimal("0.01"),
+        orders.OrderState.OPEN,
+    )
 
     # Fill #1 - A 0.009 fee gets rounded to 0.01
     balance_updates = {
         "BTC": Decimal("0.001"),
         "USD": Decimal("-0.9"),
     }
-    assert fee_strategy.calculate_fees(order, balance_updates) == {"USD": Decimal("-0.009")}
+    assert fee_strategy.calculate_fees(order, balance_updates) == {
+        "USD": Decimal("-0.009")
+    }
     order.add_fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.01")})
 
     # Fill #2 - A 0.008 fee gets rounded to 0.01
@@ -39,7 +47,9 @@ def test_percentage_fee_with_partial_fills():
         "BTC": Decimal("0.001"),
         "USD": Decimal("-0.9"),
     }
-    assert fee_strategy.calculate_fees(order, balance_updates) == {"USD": Decimal("-0.008")}
+    assert fee_strategy.calculate_fees(order, balance_updates) == {
+        "USD": Decimal("-0.008")
+    }
     order.add_fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.01")})
 
     # Fill #3 - Final fill. Total fees, prior to rounding, should be 0.118, but we charged 0.02 already, so the last
@@ -48,16 +58,66 @@ def test_percentage_fee_with_partial_fills():
         "BTC": Decimal("0.008"),
         "USD": Decimal("-10"),
     }
-    assert fee_strategy.calculate_fees(order, balance_updates) == {"USD": Decimal("-0.098")}
+    assert fee_strategy.calculate_fees(order, balance_updates) == {
+        "USD": Decimal("-0.098")
+    }
     order.add_fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.1")})
 
 
 def test_percentage_fee_with_minium():
     fee_strategy = fees.Percentage(Decimal("1"), min_fee=Decimal("5"))
-    order = orders.MarketOrder("1", OrderOperation.BUY, Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN)
+    order = orders.MarketOrder(
+        "1",
+        OrderOperation.BUY,
+        Pair("BTC", "USD"),
+        Decimal("0.1"),
+        orders.OrderState.OPEN,
+    )
 
     balance_updates = {
         "BTC": Decimal("0.1"),
         "USD": Decimal("-50.15"),
     }
     assert fee_strategy.calculate_fees(order, balance_updates) == {"USD": Decimal("-5")}
+
+
+def test_per_contract_fees_with_partial_fills():
+    fee_strategy = fees.PerContractFee(Decimal("0.85"))
+    order = orders.MarketFuturesOrder(
+        "1",
+        OrderOperation.BUY,
+        Contract("ES", "USD", 9500, 50),
+        Decimal("10"),
+        orders.OrderState.OPEN,
+    )
+
+    # Fill #1 - A 0.009 fee gets rounded to 0.01
+    balance_updates = {
+        "ES": Decimal("1"),
+        "USD": Decimal("0"),
+    }
+    assert fee_strategy.calculate_fees(order, balance_updates) == {
+        "USD": Decimal("-0.85")
+    }
+    order.add_fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.85")})
+
+    # Fill #2 - A 0.008 fee gets rounded to 0.01
+    balance_updates = {
+        "ES": Decimal("1"),
+        "USD": Decimal("0"),
+    }
+    assert fee_strategy.calculate_fees(order, balance_updates) == {
+        "USD": Decimal("-0.85")
+    }
+    order.add_fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.85")})
+
+    # Fill #3 - Final fill. Total fees, prior to rounding, should be 0.118, but we charged 0.02 already, so the last
+    # chunk, prior to rounding, should be 0.098.
+    balance_updates = {
+        "ES": Decimal("8"),
+        "USD": Decimal("0"),
+    }
+    assert fee_strategy.calculate_fees(order, balance_updates) == {
+        "USD": Decimal("-6.80")
+    }
+    order.add_fill(dt.utc_now(), balance_updates, {"USD": Decimal("-6.80")})

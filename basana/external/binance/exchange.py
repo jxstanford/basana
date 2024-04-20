@@ -20,8 +20,25 @@ import dataclasses
 
 import aiohttp
 
-from . import client, helpers, order_book, trades, websockets as binance_ws, spot, cross_margin, isolated_margin, klines
-from basana.core import bar, dispatcher, enums, event, token_bucket, websockets as core_ws
+from . import (
+    client,
+    helpers,
+    order_book,
+    trades,
+    websockets as binance_ws,
+    spot,
+    cross_margin,
+    isolated_margin,
+    klines,
+)
+from basana.core import (
+    bar,
+    dispatcher,
+    enums,
+    event,
+    token_bucket,
+    websockets as core_ws,
+)
 from basana.core.pair import Pair, PairInfo
 
 
@@ -62,13 +79,21 @@ class Exchange:
     """
 
     def __init__(
-            self, dispatcher: dispatcher.EventDispatcher, api_key: Optional[str] = None,
-            api_secret: Optional[str] = None, session: Optional[aiohttp.ClientSession] = None,
-            tb: Optional[token_bucket.TokenBucketLimiter] = None, config_overrides: dict = {}
+        self,
+        dispatcher: dispatcher.EventDispatcher,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        session: Optional[aiohttp.ClientSession] = None,
+        tb: Optional[token_bucket.TokenBucketLimiter] = None,
+        config_overrides: dict = {},
     ):
         self._dispatcher = dispatcher
         self._cli = client.APIClient(
-            api_key=api_key, api_secret=api_secret, session=session, tb=tb, config_overrides=config_overrides
+            api_key=api_key,
+            api_secret=api_secret,
+            session=session,
+            tb=tb,
+            config_overrides=config_overrides,
         )
         self._session = session
         self._tb = tb
@@ -78,8 +103,12 @@ class Exchange:
         self._pair_info_cache: Dict[Pair, PairInfoEx] = {}
 
     def subscribe_to_bar_events(
-            self, pair: Pair, bar_duration: Union[int, str], event_handler: BarEventHandler,
-            skip_first_bar: bool = True, flush_delay: float = 1
+        self,
+        pair: Pair,
+        bar_duration: Union[int, str],
+        event_handler: BarEventHandler,
+        skip_first_bar: bool = True,
+        flush_delay: float = 1,
     ):
         """Registers an async callable that will be called when a new bar is available.
 
@@ -137,11 +166,11 @@ class Exchange:
         self._subscribe_to_ws_channel_events(
             channel,
             lambda ws_cli: klines.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def subscribe_to_order_book_events(
-            self, pair: Pair, event_handler: OrderBookEventHandler, depth: int = 10
+        self, pair: Pair, event_handler: OrderBookEventHandler, depth: int = 10
     ):
         """Registers an async callable that will be called every 1 second with the top bids/asks of the order book.
 
@@ -155,7 +184,7 @@ class Exchange:
         self._subscribe_to_ws_channel_events(
             channel,
             lambda ws_cli: order_book.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def subscribe_to_trade_events(self, pair: Pair, event_handler: TradeEventHandler):
@@ -170,7 +199,7 @@ class Exchange:
         self._subscribe_to_ws_channel_events(
             channel,
             lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     async def get_pair_info(self, pair: Pair) -> PairInfoEx:
@@ -180,7 +209,9 @@ class Exchange:
         """
         ret = self._pair_info_cache.get(pair)
         if not ret:
-            exchange_info = await self._cli.get_exchange_info(helpers.pair_to_order_book_symbol(pair))
+            exchange_info = await self._cli.get_exchange_info(
+                helpers.pair_to_order_book_symbol(pair)
+            )
             symbols = exchange_info["symbols"]
             assert len(symbols) == 1, "More than 1 symbol found"
             symbol_info = symbols[0]
@@ -191,7 +222,7 @@ class Exchange:
             ret = PairInfoEx(
                 base_precision=get_precision_from_step_size(lot_size["stepSize"]),
                 quote_precision=get_precision_from_step_size(price_filter["tickSize"]),
-                permissions=symbol_info.get("permissions")
+                permissions=symbol_info.get("permissions"),
             )
             self._pair_info_cache[pair] = ret
         return ret
@@ -201,7 +232,9 @@ class Exchange:
 
         :param pair: The trading pair.
         """
-        order_book = await self._cli.get_order_book(helpers.pair_to_order_book_symbol(pair), limit=1)
+        order_book = await self._cli.get_order_book(
+            helpers.pair_to_order_book_symbol(pair), limit=1
+        )
         return Decimal(order_book["bids"][0][0]), Decimal(order_book["asks"][0][0])
 
     @property
@@ -220,8 +253,12 @@ class Exchange:
         return isolated_margin.Account(self._cli.isolated_margin_account)
 
     def _subscribe_to_ws_channel_events(
-            self, channel: str, event_src_factory: Callable[[core_ws.WebSocketClient], core_ws.ChannelEventSource],
-            event_handler: dispatcher.EventHandler
+        self,
+        channel: str,
+        event_src_factory: Callable[
+            [core_ws.WebSocketClient], core_ws.ChannelEventSource
+        ],
+        event_handler: dispatcher.EventHandler,
     ):
         # Get/create the event source for the channel.
         ws_cli = self._get_ws_client()
@@ -235,13 +272,17 @@ class Exchange:
 
     def _get_ws_client(self) -> binance_ws.WebSocketClient:
         if self._websocket is None:
-            self._websocket = binance_ws.WebSocketClient(session=self._session, config_overrides=self._config_overrides)
+            self._websocket = binance_ws.WebSocketClient(
+                session=self._session, config_overrides=self._config_overrides
+            )
         return self._websocket
 
 
 def get_filter_from_symbol_info(symbol_info: dict, filter_type: str) -> Optional[dict]:
     filters = symbol_info["filters"]
-    price_filters = [filter for filter in filters if filter["filterType"] == filter_type]
+    price_filters = [
+        filter for filter in filters if filter["filterType"] == filter_type
+    ]
     return None if not price_filters else price_filters[0]
 
 

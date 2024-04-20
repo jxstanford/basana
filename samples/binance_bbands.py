@@ -36,28 +36,41 @@ class PositionManager:
             bs.OrderOperation.SELL: bid,
         }[trading_signal.operation]
 
-    async def cancel_open_orders(self, pair: bs.Pair, order_operation: bs.OrderOperation):
-        await asyncio.gather(*[
-            self._exchange.spot_account.cancel_order(pair, order_id=open_order.id)
-            for open_order in await self._exchange.spot_account.get_open_orders(pair)
-            if open_order.operation == order_operation
-        ])
+    async def cancel_open_orders(
+        self, pair: bs.Pair, order_operation: bs.OrderOperation
+    ):
+        await asyncio.gather(
+            *[
+                self._exchange.spot_account.cancel_order(pair, order_id=open_order.id)
+                for open_order in await self._exchange.spot_account.get_open_orders(
+                    pair
+                )
+                if open_order.operation == order_operation
+            ]
+        )
 
     async def on_trading_signal(self, trading_signal: bs.TradingSignal):
-        logging.info("Trading signal: operation=%s pair=%s", trading_signal.operation, trading_signal.pair)
+        logging.info(
+            "Trading signal: operation=%s pair=%s",
+            trading_signal.operation,
+            trading_signal.pair,
+        )
         try:
             # Cancel any open orders in the opposite direction.
             await self.cancel_open_orders(
                 trading_signal.pair,
-                bs.OrderOperation.BUY if trading_signal.operation == bs.OrderOperation.SELL
-                else bs.OrderOperation.SELL
+                (
+                    bs.OrderOperation.BUY
+                    if trading_signal.operation == bs.OrderOperation.SELL
+                    else bs.OrderOperation.SELL
+                ),
             )
 
             # Calculate the order price and size.
             balances, price, pair_info = await asyncio.gather(
                 self._exchange.spot_account.get_balances(),
                 self.calculate_price(trading_signal),
-                self._exchange.get_pair_info(trading_signal.pair)
+                self._exchange.get_pair_info(trading_signal.pair),
             )
             if trading_signal.operation == bs.OrderOperation.BUY:
                 balance = balances[trading_signal.pair.quote_symbol]
@@ -71,7 +84,10 @@ class PositionManager:
 
             logging.info(
                 "Creating %s limit order for %s: amount=%s price=%s",
-                trading_signal.operation, trading_signal.pair, order_size, price
+                trading_signal.operation,
+                trading_signal.pair,
+                order_size,
+                price,
             )
             await self._exchange.spot_account.create_limit_order(
                 trading_signal.operation, trading_signal.pair, order_size, price
@@ -82,18 +98,26 @@ class PositionManager:
     async def on_bar_event(self, bar_event: bs.BarEvent):
         logging.info(
             "Bar event: pair=%s open=%s high=%s low=%s close=%s volume=%s",
-            bar_event.bar.pair, bar_event.bar.open, bar_event.bar.high, bar_event.bar.low, bar_event.bar.close,
-            bar_event.bar.volume
+            bar_event.bar.pair,
+            bar_event.bar.open,
+            bar_event.bar.high,
+            bar_event.bar.low,
+            bar_event.bar.close,
+            bar_event.bar.volume,
         )
 
 
 async def main():
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s"
+    )
 
     event_dispatcher = bs.realtime_dispatcher()
     api_key = "YOUR_API_KEY"
     api_secret = "YOUR_API_SECRET"
-    exchange = binance_exchange.Exchange(event_dispatcher, api_key=api_key, api_secret=api_secret)
+    exchange = binance_exchange.Exchange(
+        event_dispatcher, api_key=api_key, api_secret=api_secret
+    )
     position_mgr = PositionManager(exchange, Decimal(30))
 
     pairs = [

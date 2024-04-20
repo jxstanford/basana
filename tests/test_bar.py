@@ -37,22 +37,46 @@ def test_trades_to_bar_manual_flush():
     end = begin + datetime.timedelta(seconds=bar_duration, microseconds=-1)
 
     # This one should be ignored since it'll be outside the first window.
-    trade_to_bar.push_trade(begin - datetime.timedelta(seconds=1), Decimal("1000"), Decimal("1000"))
+    trade_to_bar.push_trade(
+        begin - datetime.timedelta(seconds=1), Decimal("1000"), Decimal("1000")
+    )
     # These ones are part of the first window but they will be skipped since that is the default (skip_first_bar=True).
-    trade_to_bar.push_trade(begin + datetime.timedelta(seconds=2), Decimal("104"), Decimal("0.3"))
-    trade_to_bar.push_trade(begin + datetime.timedelta(seconds=3), Decimal("101"), Decimal("0.4"))
+    trade_to_bar.push_trade(
+        begin + datetime.timedelta(seconds=2), Decimal("104"), Decimal("0.3")
+    )
+    trade_to_bar.push_trade(
+        begin + datetime.timedelta(seconds=3), Decimal("101"), Decimal("0.4")
+    )
     # These ones should be included in the next window.
-    trade_to_bar.push_trade(begin + datetime.timedelta(seconds=61), Decimal("200"), Decimal("1.1"))
-    trade_to_bar.push_trade(begin + datetime.timedelta(seconds=62), Decimal("201"), Decimal("1.2"))
-    trade_to_bar.push_trade(begin + datetime.timedelta(seconds=63), Decimal("202"), Decimal("1.3"))
-    trade_to_bar.push_trade(begin + datetime.timedelta(seconds=64), Decimal("203"), Decimal("1.4"))
+    trade_to_bar.push_trade(
+        begin + datetime.timedelta(seconds=61), Decimal("200"), Decimal("1.1")
+    )
+    trade_to_bar.push_trade(
+        begin + datetime.timedelta(seconds=62), Decimal("201"), Decimal("1.2")
+    )
+    trade_to_bar.push_trade(
+        begin + datetime.timedelta(seconds=63), Decimal("202"), Decimal("1.3")
+    )
+    trade_to_bar.push_trade(
+        begin + datetime.timedelta(seconds=64), Decimal("203"), Decimal("1.4")
+    )
     # Leave a 1 day gap from the previous bar.
-    trade_to_bar.push_trade(begin + datetime.timedelta(seconds=181), Decimal("300"), Decimal("2.1"))
-    trade_to_bar.push_trade(begin + datetime.timedelta(seconds=182), Decimal("301"), Decimal("2.2"))
-    trade_to_bar.push_trade(begin + datetime.timedelta(seconds=183), Decimal("302"), Decimal("2.3"))
-    trade_to_bar.push_trade(begin + datetime.timedelta(seconds=185), Decimal("303"), Decimal("2.4"))
+    trade_to_bar.push_trade(
+        begin + datetime.timedelta(seconds=181), Decimal("300"), Decimal("2.1")
+    )
+    trade_to_bar.push_trade(
+        begin + datetime.timedelta(seconds=182), Decimal("301"), Decimal("2.2")
+    )
+    trade_to_bar.push_trade(
+        begin + datetime.timedelta(seconds=183), Decimal("302"), Decimal("2.3")
+    )
+    trade_to_bar.push_trade(
+        begin + datetime.timedelta(seconds=185), Decimal("303"), Decimal("2.4")
+    )
     # This one should be ignored since its not in order
-    trade_to_bar.push_trade(begin + datetime.timedelta(seconds=184), Decimal("3000"), Decimal("3000"))
+    trade_to_bar.push_trade(
+        begin + datetime.timedelta(seconds=184), Decimal("3000"), Decimal("3000")
+    )
 
     # Flush the first day.
     trade_to_bar._flush(begin, end)

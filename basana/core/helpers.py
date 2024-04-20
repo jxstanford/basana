@@ -94,7 +94,9 @@ class TaskPool:
         return not self._tasks
 
     async def _wait_impl(self, timeout: Optional[Union[int, float]], return_when: str):
-        done, _ = await asyncio.wait(self._tasks, timeout=timeout, return_when=return_when)
+        done, _ = await asyncio.wait(
+            self._tasks, timeout=timeout, return_when=return_when
+        )
         for task in done:
             self._tasks.remove(task)
 
@@ -139,7 +141,9 @@ def truncate_decimal(value: Decimal, precision: int) -> Decimal:
     return round_decimal(value, precision, rounding=decimal.ROUND_DOWN)
 
 
-def round_decimal_to_increment(value: Decimal, increment: Decimal, precision: int) -> Decimal:
+def round_decimal_to_increment(
+    value: Decimal, increment: Decimal, precision: int
+) -> Decimal:
     """Rounds a float value to the nearest multiple of the increment.
 
     :param value: The value to round.

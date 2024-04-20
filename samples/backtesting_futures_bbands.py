@@ -23,6 +23,7 @@ import asyncio
 import logging
 
 from basana.backtesting import charts
+from basana.backtesting import fees
 from basana.core.pair import Contract, ContractInfo
 from basana.external.common.csv.bars import OHLCVTzBarSource
 import basana as bs
@@ -31,8 +32,12 @@ import bbands
 
 
 class PositionManager:
-    def __init__(self, exchange: backtesting_exchange.FuturesExchange, target_trade_size: Decimal,
-                 max_position_size: Decimal):
+    def __init__(
+        self,
+        exchange: backtesting_exchange.FuturesExchange,
+        target_trade_size: Decimal,
+        max_position_size: Decimal,
+    ):
         assert target_trade_size > 0
         assert max_position_size >= target_trade_size
         self._exchange = exchange
@@ -40,19 +45,26 @@ class PositionManager:
         self._max_position_size = max_position_size
 
     async def on_trading_signal(self, trading_signal: bs.TradingSignal):
-        logging.info("Trading signal: operation=%s contract=%s", trading_signal.operation,
-                     trading_signal.pair)
+        logging.info(
+            "Trading signal: operation=%s contract=%s",
+            trading_signal.operation,
+            trading_signal.pair,
+        )
         try:
             # Calculate the order size.
             order_size = await self._adjusted_order_size(trading_signal)
             if not order_size:
                 return
             logging.info(
-                "Creating %s market order for %s: amount=%s", trading_signal.operation,
+                "Creating %s market order for %s: amount=%s",
+                trading_signal.operation,
                 trading_signal.pair,
-                order_size)
+                order_size,
+            )
 
-            await self._exchange.create_market_order(trading_signal.operation, trading_signal.pair, order_size)
+            await self._exchange.create_market_order(
+                trading_signal.operation, trading_signal.pair, order_size
+            )
         except Exception as e:
             logging.error(e)
 
@@ -76,15 +88,21 @@ class PositionManager:
 
 
 async def main():
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s"
+    )
 
     event_dispatcher = bs.backtesting_dispatcher()
     contract = Contract("ES", "USD", 9500, 50)
     exchange = backtesting_exchange.FuturesExchange(
         event_dispatcher,
-        initial_balances={"ES": Decimal(0), "USD": Decimal(100_000)}
+        initial_balances={"ES": Decimal(0), "USD": Decimal(100_000)},
+        fee_strategy=fees.PerContractFee(Decimal(5.00)),
     )
-    exchange.set_contract_info(contract, ContractInfo(base_precision=0, quote_precision=2, price_increment=0.25))
+    exchange.set_contract_info(
+        contract,
+        ContractInfo(base_precision=0, quote_precision=2, price_increment=0.25),
+    )
 
     # Connect the strategy to the bar events from the exchange.
     strategy = bbands.Strategy(event_dispatcher, 10, 1.5)
@@ -100,9 +118,15 @@ async def main():
     # Setup chart.
     chart = charts.LineCharts(exchange)
     chart.add_pair(contract)
-    chart.add_pair_indicator("Upper", contract, lambda _: strategy.bb[-1].ub if len(strategy.bb) else None)
-    chart.add_pair_indicator("Central", contract, lambda _: strategy.bb[-1].cb if len(strategy.bb) else None)
-    chart.add_pair_indicator("Lower", contract, lambda _: strategy.bb[-1].lb if len(strategy.bb) else None)
+    chart.add_pair_indicator(
+        "Upper", contract, lambda _: strategy.bb[-1].ub if len(strategy.bb) else None
+    )
+    chart.add_pair_indicator(
+        "Central", contract, lambda _: strategy.bb[-1].cb if len(strategy.bb) else None
+    )
+    chart.add_pair_indicator(
+        "Lower", contract, lambda _: strategy.bb[-1].lb if len(strategy.bb) else None
+    )
     chart.add_portfolio_value("USD")
 
     # Run the backtest.

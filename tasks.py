@@ -46,5 +46,5 @@ def build_docs(c):
 
 
 @task
-def format_code(c):
+def format(c):
     c.run("poetry run -- black .", pty=True)

@@ -50,20 +50,24 @@ class OrderBook:
     @property
     def datetime(self) -> datetime.datetime:
         timestamp = int(self.json["microtimestamp"]) / 1e6
-        return datetime.datetime.utcfromtimestamp(timestamp).replace(tzinfo=datetime.timezone.utc)
+        return datetime.datetime.utcfromtimestamp(timestamp).replace(
+            tzinfo=datetime.timezone.utc
+        )
 
     @property
     def bids(self) -> List[Entry]:
         """Returns the top bid entries."""
         return [
-            Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["bids"]
+            Entry(price=Decimal(entry[0]), volume=Decimal(entry[1]))
+            for entry in self.json["bids"]
         ]
 
     @property
     def asks(self) -> List[Entry]:
         """Returns the top ask entries."""
         return [
-            Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["asks"]
+            Entry(price=Decimal(entry[0]), volume=Decimal(entry[1]))
+            for entry in self.json["asks"]
         ]
 
 
@@ -82,9 +86,13 @@ class OrderBookEvent(event.Event):
 
 class PollOrderBook(event.FifoQueueEventSource, event.Producer):
     def __init__(
-            self, pair: Pair, interval: float, group: Optional[int] = None,
-            session: Optional[aiohttp.ClientSession] = None, tb: Optional[token_bucket.TokenBucketLimiter] = None,
-            config_overrides: dict = {}
+        self,
+        pair: Pair,
+        interval: float,
+        group: Optional[int] = None,
+        session: Optional[aiohttp.ClientSession] = None,
+        tb: Optional[token_bucket.TokenBucketLimiter] = None,
+        config_overrides: dict = {},
     ):
         assert interval > 0, "Invalid interval"
 
@@ -92,10 +100,14 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
         self.pair = pair
         self._interval = interval
         self._group = group
-        self._client = client.APIClient(session=session, tb=tb, config_overrides=config_overrides)
+        self._client = client.APIClient(
+            session=session, tb=tb, config_overrides=config_overrides
+        )
 
     async def _fetch_and_push(self, currency_pair: str):
-        order_book_json = await self._client.get_order_book(currency_pair, group=self._group)
+        order_book_json = await self._client.get_order_book(
+            currency_pair, group=self._group
+        )
         self.push(OrderBookEvent(dt.utc_now(), OrderBook(self.pair, order_book_json)))
 
     async def main(self):
@@ -108,7 +120,11 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
             await asyncio.sleep(self._interval)
 
     async def on_error(self, error: Any):
-        logger.error(logs.StructuredMessage("Error polling order book", channel=self.pair, error=error))
+        logger.error(
+            logs.StructuredMessage(
+                "Error polling order book", channel=self.pair, error=error
+            )
+        )
 
 
 # Generate OrderBookEvent events from websocket messages.

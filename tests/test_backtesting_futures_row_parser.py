@@ -54,13 +54,17 @@ bars_to_sanitize = [
 
 @pytest.mark.parametrize("row_dict", bars_to_sanitize)
 def test_bars_need_sanitization(row_dict):
-    row_parser = OHLCVTzRowParser(pair.Contract("ORCL", "USD", 0, 1), timedelta=period_to_timedelta["1d"])
+    row_parser = OHLCVTzRowParser(
+        pair.Contract("ORCL", "USD", 0, 1), timedelta=period_to_timedelta["1d"]
+    )
     with pytest.raises(bar.InvalidBar):
         row_parser.parse_row(row_dict)
 
 
 @pytest.mark.parametrize("row_dict", bars_to_sanitize)
 def test_row_parser_sanitization(row_dict):
-    row_parser = OHLCVTzRowParser(pair.Contract("ORCL", "USD", 0, 1), timedelta=period_to_timedelta["1d"])
+    row_parser = OHLCVTzRowParser(
+        pair.Contract("ORCL", "USD", 0, 1), timedelta=period_to_timedelta["1d"]
+    )
     row_parser.sanitize = True
     row_parser.parse_row(row_dict)

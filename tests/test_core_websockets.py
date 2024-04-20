@@ -40,13 +40,19 @@ class WebSocketClient(core_ws.WebSocketClient):
     def __init__(self, url):
         super().__init__(url)
 
-    async def subscribe_to_channels(self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse):
+    async def subscribe_to_channels(
+        self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse
+    ):
         for channel in channels:
-            await ws_cli.send_str(json.dumps({"request": "subscribe", "channel": channel}))
+            await ws_cli.send_str(
+                json.dumps({"request": "subscribe", "channel": channel})
+            )
 
     async def handle_message(self, message: dict) -> bool:
         ret = False
-        if (channel := message.get("channel")) and (event_source := self.get_channel_event_source(channel)):
+        if (channel := message.get("channel")) and (
+            event_source := self.get_channel_event_source(channel)
+        ):
             await event_source.push_from_message(message)
             ret = True
         return ret
@@ -61,7 +67,11 @@ def test_add_channels(realtime_dispatcher):
         while True:
             message = json.loads(await ws_server.recv())
             if message["request"] == "subscribe":
-                await ws_server.send(json.dumps({"response": "subscription_ok", "channel": message["channel"]}))
+                await ws_server.send(
+                    json.dumps(
+                        {"response": "subscription_ok", "channel": message["channel"]}
+                    )
+                )
 
     async def on_event(event: Event):
         nonlocal subscriptions
@@ -101,7 +111,14 @@ def test_schedule_reconnection(realtime_dispatcher):
             while True:
                 message = json.loads(await ws_server.recv())
                 if message["request"] == "subscribe":
-                    await ws_server.send(json.dumps({"response": "subscription_ok", "channel": message["channel"]}))
+                    await ws_server.send(
+                        json.dumps(
+                            {
+                                "response": "subscription_ok",
+                                "channel": message["channel"],
+                            }
+                        )
+                    )
         except websockets.exceptions.ConnectionClosedOK:
             pass
 

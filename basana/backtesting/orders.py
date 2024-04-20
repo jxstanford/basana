@@ -504,6 +504,12 @@ class StopLimitOrder(Order):
         return ret
 
 
+@dataclasses.dataclass
+class FuturesFill(Fill):
+    #: The price at which the fill took place.
+    price: Decimal
+
+
 class FuturesOrder(Order):
     def __init__(
         self,
@@ -512,8 +518,17 @@ class FuturesOrder(Order):
         contract: Contract,
         quantity: Decimal,
         state: OrderState,
+        opening_quantity: Decimal = Decimal(
+            0
+        ),  # how much of the order is opening a position
+        closing_quantity: Decimal = Decimal(
+            0
+        ),  # how much of the order is closing a position
     ):
         assert quantity > Decimal(0), f"Invalid quantity {quantity}"
+        self._quantity = quantity
+        self._opening_quantity = opening_quantity
+        self._closing_quantity = closing_quantity
         super().__init__(id, operation, contract, quantity, state)
 
     @property
@@ -537,6 +552,36 @@ class FuturesOrder(Order):
     def quote_quantity_filled(self) -> Decimal:
         return abs(self._balance_updates.get(self.pair.quote_symbol, Decimal(0)))
 
+    @property
+    def closing_quantity(self) -> Decimal:
+        return self._closing_quantity
+
+    @property
+    def closing_quantity_filled(self) -> Decimal:
+        return min(
+            abs(self._balance_updates.get(self.pair.base_symbol, Decimal(0))),
+            self._closing_quantity,
+        )
+
+    @property
+    def closing_quantity_pending(self) -> Decimal:
+        return self._closing_quantity - self.closing_quantity_filled
+
+    @property
+    def opening_quantity(self) -> Decimal:
+        return self._opening_quantity
+
+    @property
+    def opening_quantity_filled(self) -> Decimal:
+        return min(
+            abs(self._balance_updates.get(self.pair.base_symbol, Decimal(0))),
+            self._opening_quantity,
+        )
+
+    @property
+    def opening_quantity_pending(self) -> Decimal:
+        return self._opening_quantity - self.opening_quantity_filled
+
 
 class MarketFuturesOrder(FuturesOrder):
     def __init__(
@@ -546,13 +591,20 @@ class MarketFuturesOrder(FuturesOrder):
         contract: Contract,
         quantity: Decimal,
         state: OrderState,
+        opening_quantity: Decimal = Decimal(0),
+        closing_quantity: Decimal = Decimal(0),
     ):
-        super().__init__(id, operation, contract, quantity, state)
+        super().__init__(
+            id, operation, contract, quantity, state, opening_quantity, closing_quantity
+        )
 
     def not_filled(self):
         # Fill or kill market orders.
         self.cancel()
 
+    # TODO: We need to compute the PnL. To do so, we need to know what component of this order was filled already, and
+    # TODO: whether that component is fully or partially closing orders. We will need to know the price of the paired
+    # TODO: opening order(s) to complete the calculation.
     def get_balance_updates(
         self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy
     ) -> Dict[str, Decimal]:
@@ -583,7 +635,7 @@ class MarketFuturesOrder(FuturesOrder):
 
         return {
             self.contract.base_symbol: quantity * base_sign,
-            self.contract.quote_symbol: price * quantity * -base_sign,
+            "price": price,
         }
 
 
@@ -596,10 +648,14 @@ class LimitFuturesOrder(FuturesOrder):
         quantity: Decimal,
         limit_price: Decimal,
         state: OrderState,
+        opening_quantity: Decimal = Decimal(0),
+        closing_quantity: Decimal = Decimal(0),
     ):
         assert limit_price > Decimal(0), "Invalid limit_price {limit_price}"
 
-        super().__init__(id, operation, contract, quantity, state)
+        super().__init__(
+            id, operation, contract, quantity, state, opening_quantity, closing_quantity
+        )
 
         self._limit_price = limit_price
 
@@ -656,10 +712,14 @@ class StopFuturesOrder(FuturesOrder):
         quantity: Decimal,
         stop_price: Decimal,
         state: OrderState,
+        opening_quantity: Decimal = Decimal(0),
+        closing_quantity: Decimal = Decimal(0),
     ):
         assert stop_price > Decimal(0), "Invalid stop_price {stop_price}"
 
-        super().__init__(id, operation, contract, quantity, state)
+        super().__init__(
+            id, operation, contract, quantity, state, opening_quantity, closing_quantity
+        )
         self._stop_price = stop_price
 
     def not_filled(self):

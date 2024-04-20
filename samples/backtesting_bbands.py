@@ -30,13 +30,19 @@ import bbands
 
 
 class PositionManager:
-    def __init__(self, exchange: backtesting_exchange.Exchange, position_amount: Decimal):
+    def __init__(
+        self, exchange: backtesting_exchange.Exchange, position_amount: Decimal
+    ):
         assert position_amount > 0
         self._exchange = exchange
         self._position_amount = position_amount
 
     async def on_trading_signal(self, trading_signal: bs.TradingSignal):
-        logging.info("Trading signal: operation=%s pair=%s", trading_signal.operation, trading_signal.pair)
+        logging.info(
+            "Trading signal: operation=%s pair=%s",
+            trading_signal.operation,
+            trading_signal.pair,
+        )
         try:
             # Calculate the order size.
             balances = await self._exchange.get_balances()
@@ -53,21 +59,27 @@ class PositionManager:
                 return
 
             logging.info(
-                "Creating %s market order for %s: amount=%s", trading_signal.operation, trading_signal.pair, order_size
+                "Creating %s market order for %s: amount=%s",
+                trading_signal.operation,
+                trading_signal.pair,
+                order_size,
             )
-            await self._exchange.create_market_order(trading_signal.operation, trading_signal.pair, order_size)
+            await self._exchange.create_market_order(
+                trading_signal.operation, trading_signal.pair, order_size
+            )
         except Exception as e:
             logging.error(e)
 
 
 async def main():
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s"
+    )
 
     event_dispatcher = bs.backtesting_dispatcher()
     pair = bs.Pair("BTC", "USDT")
     exchange = backtesting_exchange.Exchange(
-        event_dispatcher,
-        initial_balances={"BTC": Decimal(0), "USDT": Decimal(10000)}
+        event_dispatcher, initial_balances={"BTC": Decimal(0), "USDT": Decimal(10000)}
     )
     exchange.set_pair_info(pair, bs.PairInfo(8, 2))
 
@@ -85,9 +97,15 @@ async def main():
     # Setup chart.
     chart = charts.LineCharts(exchange)
     chart.add_pair(pair)
-    chart.add_pair_indicator("Upper", pair, lambda _: strategy.bb[-1].ub if len(strategy.bb) else None)
-    chart.add_pair_indicator("Central", pair, lambda _: strategy.bb[-1].cb if len(strategy.bb) else None)
-    chart.add_pair_indicator("Lower", pair, lambda _: strategy.bb[-1].lb if len(strategy.bb) else None)
+    chart.add_pair_indicator(
+        "Upper", pair, lambda _: strategy.bb[-1].ub if len(strategy.bb) else None
+    )
+    chart.add_pair_indicator(
+        "Central", pair, lambda _: strategy.bb[-1].cb if len(strategy.bb) else None
+    )
+    chart.add_pair_indicator(
+        "Lower", pair, lambda _: strategy.bb[-1].lb if len(strategy.bb) else None
+    )
     chart.add_portfolio_value("USDT")
 
     # Run the backtest.

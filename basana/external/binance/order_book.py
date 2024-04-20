@@ -42,6 +42,7 @@ class Entry:
 
 class OrderBook:
     """An order book."""
+
     def __init__(self, pair: Pair, json: dict):
         #: The trading pair.
         self.pair: Pair = pair
@@ -52,14 +53,16 @@ class OrderBook:
     def bids(self) -> List[Entry]:
         """Returns the top bid entries."""
         return [
-            Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["bids"]
+            Entry(price=Decimal(entry[0]), volume=Decimal(entry[1]))
+            for entry in self.json["bids"]
         ]
 
     @property
     def asks(self) -> List[Entry]:
         """Returns the top ask entries."""
         return [
-            Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["asks"]
+            Entry(price=Decimal(entry[0]), volume=Decimal(entry[1]))
+            for entry in self.json["asks"]
         ]
 
 
@@ -69,6 +72,7 @@ class OrderBookEvent(event.Event):
     :param when: The datetime when the event occurred. It must have timezone information set.
     :param order_book: The updated order book.
     """
+
     def __init__(self, when: datetime.datetime, order_book: OrderBook):
         super().__init__(when)
         #: The order book.
@@ -77,9 +81,13 @@ class OrderBookEvent(event.Event):
 
 class PollOrderBook(event.FifoQueueEventSource, event.Producer):
     def __init__(
-            self, pair: Pair, interval: float, limit: Optional[int] = None,
-            session: Optional[aiohttp.ClientSession] = None, tb: Optional[token_bucket.TokenBucketLimiter] = None,
-            config_overrides: dict = {}
+        self,
+        pair: Pair,
+        interval: float,
+        limit: Optional[int] = None,
+        session: Optional[aiohttp.ClientSession] = None,
+        tb: Optional[token_bucket.TokenBucketLimiter] = None,
+        config_overrides: dict = {},
     ):
         assert interval > 0, "Invalid interval"
 
@@ -87,17 +95,22 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
         self.pair = pair
         self._interval = interval
         self._limit = limit
-        self._client = client.APIClient(session=session, tb=tb, config_overrides=config_overrides)
+        self._client = client.APIClient(
+            session=session, tb=tb, config_overrides=config_overrides
+        )
 
     async def _fetch_and_push(self, order_book_symbol: str):
-        order_book_json = await self._client.get_order_book(order_book_symbol, limit=self._limit)
-        self.push(OrderBookEvent(
-            dt.utc_now(),
-            OrderBook(self.pair, order_book_json)
-        ))
+        order_book_json = await self._client.get_order_book(
+            order_book_symbol, limit=self._limit
+        )
+        self.push(OrderBookEvent(dt.utc_now(), OrderBook(self.pair, order_book_json)))
 
     async def on_error(self, error: Any):
-        logger.error(logs.StructuredMessage("Error polling order book", channel=self.pair, error=error))
+        logger.error(
+            logs.StructuredMessage(
+                "Error polling order book", channel=self.pair, error=error
+            )
+        )
 
     async def main(self):
         order_book_symbol = helpers.pair_to_order_book_symbol(self.pair)
@@ -117,10 +130,12 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
 
     async def push_from_message(self, message: dict):
         event = message["data"]
-        self.push(OrderBookEvent(
-            dt.utc_now(),  # The event doesn't include a timestamp.
-            OrderBook(self._pair, event)
-        ))
+        self.push(
+            OrderBookEvent(
+                dt.utc_now(),  # The event doesn't include a timestamp.
+                OrderBook(self._pair, event),
+            )
+        )
 
 
 def get_channel(pair: Pair, depth: int) -> str:

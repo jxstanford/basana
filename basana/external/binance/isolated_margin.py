@@ -49,6 +49,7 @@ class IsolatedBalance:
 
 class Account(margin.Account):
     """Isolated margin account."""
+
     def __init__(self, cli: margin_client.IsolatedMarginAccount):
         self._cli = cli
 
@@ -66,7 +67,9 @@ class Account(margin.Account):
             ret[pair] = isolated_balance
         return ret
 
-    async def transfer_from_spot_account(self, asset: str, pair: Pair, amount: Decimal) -> dict:
+    async def transfer_from_spot_account(
+        self, asset: str, pair: Pair, amount: Decimal
+    ) -> dict:
         """Transfer balances from the spot account to the isolated margin account.
 
         If the transfer can't be completed a :class:`basana.external.binance.exchange.Error` will be raised.
@@ -75,9 +78,13 @@ class Account(margin.Account):
         :param pair: The trading pair.
         :param amount: The amount to transfer.
         """
-        return await self.client.transfer_from_spot_account(asset, helpers.pair_to_order_book_symbol(pair), amount)
+        return await self.client.transfer_from_spot_account(
+            asset, helpers.pair_to_order_book_symbol(pair), amount
+        )
 
-    async def transfer_to_spot_account(self, asset: str, pair: Pair, amount: Decimal) -> dict:
+    async def transfer_to_spot_account(
+        self, asset: str, pair: Pair, amount: Decimal
+    ) -> dict:
         """Transfer balances from the isolated margin account to the spot account.
 
         If the transfer can't be completed a :class:`basana.external.binance.exchange.Error` will be raised.
@@ -86,4 +93,6 @@ class Account(margin.Account):
         :param pair: The trading pair.
         :param amount: The amount to transfer.
         """
-        return await self.client.transfer_to_spot_account(asset, helpers.pair_to_order_book_symbol(pair), amount)
+        return await self.client.transfer_to_spot_account(
+            asset, helpers.pair_to_order_book_symbol(pair), amount
+        )

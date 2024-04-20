@@ -37,7 +37,14 @@ class Error(Exception):
     :param resp: The response.
     :param json_response: The response body, if it was a JSON.
     """
-    def __init__(self, msg: str, code: Optional[int], resp: aiohttp.ClientResponse, json_response: Optional[Any]):
+
+    def __init__(
+        self,
+        msg: str,
+        code: Optional[int],
+        resp: aiohttp.ClientResponse,
+        json_response: Optional[Any],
+    ):
         super().__init__(msg)
         #: The error message.
         self.msg = msg
@@ -65,12 +72,16 @@ def raise_for_error(resp: aiohttp.ClientResponse, json_response):
 
 class BaseClient:
     def __init__(
-            self, api_key: Optional[str] = None, api_secret: Optional[str] = None,
-            session: Optional[aiohttp.ClientSession] = None, tb: Optional[token_bucket.TokenBucketLimiter] = None,
-            config_overrides: dict = {}
+        self,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        session: Optional[aiohttp.ClientSession] = None,
+        tb: Optional[token_bucket.TokenBucketLimiter] = None,
+        config_overrides: dict = {},
     ):
-        assert not ((api_key is None) ^ (api_secret is None)), \
-            "Both api_key and api_secret should be set, or none of them"
+        assert not (
+            (api_key is None) ^ (api_secret is None)
+        ), "Both api_key and api_secret should be set, or none of them"
 
         self._api_key = api_key
         self._api_secret = api_secret
@@ -79,8 +90,13 @@ class BaseClient:
         self._config_overrides = config_overrides
 
     async def make_request(
-            self, method: str, path: str, send_key: bool = False, send_sig: bool = False,
-            qs_params: Dict[str, Any] = {}, data: Dict[str, Any] = {}
+        self,
+        method: str,
+        path: str,
+        send_key: bool = False,
+        send_sig: bool = False,
+        qs_params: Dict[str, Any] = {},
+        data: Dict[str, Any] = {},
     ) -> Any:
         if self._tb and (sleep_time := self._tb.consume()):
             await asyncio.sleep(sleep_time)
@@ -94,8 +110,12 @@ class BaseClient:
             }.get(method)
             assert session_method is not None
 
-            base_url = get_config_value(config.DEFAULTS, "api.http.base_url", overrides=self._config_overrides)
-            timeout = get_config_value(config.DEFAULTS, "api.http.timeout", overrides=self._config_overrides)
+            base_url = get_config_value(
+                config.DEFAULTS, "api.http.base_url", overrides=self._config_overrides
+            )
+            timeout = get_config_value(
+                config.DEFAULTS, "api.http.timeout", overrides=self._config_overrides
+            )
             url = urljoin(base_url, path)
 
             if send_key or send_sig:
@@ -110,13 +130,19 @@ class BaseClient:
                 # Signature and timestamp should go in the query string, and the timestamp should be included in the
                 # signature.
                 qs_params["timestamp"] = int(round(time.time() * 1000))
-                qs_params["signature"] = helpers.get_signature(self._api_secret, qs_params=qs_params, data=data)
+                qs_params["signature"] = helpers.get_signature(
+                    self._api_secret, qs_params=qs_params, data=data
+                )
 
             form_data = None if not data else aiohttp.FormData(data)
-            async with session_method(url, headers=headers, params=qs_params, data=form_data, timeout=timeout) as resp:
+            async with session_method(
+                url, headers=headers, params=qs_params, data=form_data, timeout=timeout
+            ) as resp:
                 # print(await resp.text())
                 json_response = None
-                if (ct := resp.headers.get("Content-Type")) and ct.lower().find("application/json") == 0:
+                if (ct := resp.headers.get("Content-Type")) and ct.lower().find(
+                    "application/json"
+                ) == 0:
                     json_response = await resp.json()
                 raise_for_error(resp, json_response)
                 return json_response

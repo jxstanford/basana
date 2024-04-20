@@ -28,7 +28,9 @@ def backtesting_log_mode(dispatcher):
     def record_factory(*args, **kwargs):
         record = old_factory(*args, **kwargs)
 
-        record_dt = dispatcher.current_event_dt if dispatcher.current_event_dt else dt.utc_now()
+        record_dt = (
+            dispatcher.current_event_dt if dispatcher.current_event_dt else dt.utc_now()
+        )
         record.created = dt.to_utc_timestamp(record_dt)
         record.msecs = int(record_dt.microsecond / 1000)
         return record

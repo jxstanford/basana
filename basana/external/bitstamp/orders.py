@@ -38,7 +38,9 @@ class Order:
     @property
     def datetime(self) -> datetime.datetime:
         timestamp = int(self.json["microtimestamp"]) / 1e6
-        return datetime.datetime.utcfromtimestamp(timestamp).replace(tzinfo=datetime.timezone.utc)
+        return datetime.datetime.utcfromtimestamp(timestamp).replace(
+            tzinfo=datetime.timezone.utc
+        )
 
     @property
     def amount(self) -> Decimal:
@@ -84,7 +86,11 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         self._pair = pair
 
     async def push_from_message(self, message: dict):
-        self.push(OrderEvent(dt.utc_now(), message["event"], Order(self._pair, message["data"])))
+        self.push(
+            OrderEvent(
+                dt.utc_now(), message["event"], Order(self._pair, message["data"])
+            )
+        )
 
 
 def get_public_channel(pair: Pair) -> str:

@@ -34,7 +34,11 @@ def test_trading_signal(backtesting_dispatcher):
 
     async def impl():
         source = TradingSignalSource(backtesting_dispatcher)
-        source.push(trading_signal.TradingSignal(dt.local_now(), enums.OrderOperation.BUY, Pair("BTC", "USDT")))
+        source.push(
+            trading_signal.TradingSignal(
+                dt.local_now(), enums.OrderOperation.BUY, Pair("BTC", "USDT")
+            )
+        )
         source.subscribe_to_trading_signals(on_trading_signal)
         await backtesting_dispatcher.run()
 

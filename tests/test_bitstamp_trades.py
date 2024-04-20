@@ -30,7 +30,9 @@ from basana.external.bitstamp import exchange
 def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher):
     if not public_events:
         bitstamp_http_api_mock.post(
-            "http://bitstamp.mock/api/v2/websockets_token/", status=200, payload={"user_id": "1234", "token": "1234"}
+            "http://bitstamp.mock/api/v2/websockets_token/",
+            status=200,
+            payload={"user_id": "1234", "token": "1234"},
         )
 
     p = pair.Pair("BTC", "USD")
@@ -51,35 +53,41 @@ def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher
             await websocket.send(json.dumps({"event": "bts:subscription_succeeded"}))
             # Keep on sending trade events while the connection is open.
             while websocket.open:
-                await websocket.send(json.dumps({
-                    "event": "trade",
-                    "channel": channel,
-                    "data": {
-                        "id": 246612672,
-                        "timestamp": "1662573810",
-                        "amount": 0.374,
-                        "amount_str": "0.37400000",
-                        "price": 19034,
-                        "price_str": "19034",
-                        "type": 0,
-                        "microtimestamp": "1662573810482000",
-                        "buy_order_id": 1530834271539201,
-                        "sell_order_id": 1530834150440960
-                    }
-                }))
+                await websocket.send(
+                    json.dumps(
+                        {
+                            "event": "trade",
+                            "channel": channel,
+                            "data": {
+                                "id": 246612672,
+                                "timestamp": "1662573810",
+                                "amount": 0.374,
+                                "amount_str": "0.37400000",
+                                "price": 19034,
+                                "price_str": "19034",
+                                "type": 0,
+                                "microtimestamp": "1662573810482000",
+                                "buy_order_id": 1530834271539201,
+                                "sell_order_id": 1530834150440960,
+                            },
+                        }
+                    )
+                )
                 await asyncio.sleep(0.1)
 
     async def test_main():
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
             e = exchange.Exchange(
-                realtime_dispatcher, "key", "secret",
+                realtime_dispatcher,
+                "key",
+                "secret",
                 config_overrides={
                     "api": {
                         "http": {"base_url": "http://bitstamp.mock/"},
-                        "websockets": {"base_url": ws_uri}
+                        "websockets": {"base_url": ws_uri},
                     }
-                }
+                },
             )
             if public_events:
                 e.subscribe_to_public_trade_events(p, on_trade_event)

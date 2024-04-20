@@ -280,7 +280,9 @@ class FuturesExchangeOrder(ExchangeOrder):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def create_order(self, id: str) -> orders.Order:
+    def create_order(
+        self, id: str, opening_quantity=Decimal(0), closing_quantity=Decimal(0)
+    ) -> orders.Order:
         raise NotImplementedError()
 
     def validate(self, contract_info: PairInfo):
@@ -289,7 +291,7 @@ class FuturesExchangeOrder(ExchangeOrder):
         if self.quantity <= Decimal(0):
             raise errors.Error("Amount must be > 0")
         if self.quantity != helpers.truncate_decimal(
-                self.quantity, contract_info.base_precision
+            self.quantity, contract_info.base_precision
         ):
             raise errors.Error(
                 "{} exceeds maximum precision of {} decimal digits".format(
@@ -315,10 +317,18 @@ class MarketFuturesOrder(FuturesExchangeOrder):
         # It will be the market price, so we can't tell right now.
         return None
 
-    def create_order(self, id: str) -> orders.Order:
+    def create_order(
+        self, id: str, opening_quantity=Decimal(0), closing_quantity=Decimal(0)
+    ) -> orders.Order:
         assert isinstance(self._pair, Contract)
         return orders.MarketFuturesOrder(
-            id, self.operation, self.contract, self.quantity, orders.OrderState.OPEN
+            id,
+            self.operation,
+            self.contract,
+            self.quantity,
+            orders.OrderState.OPEN,
+            opening_quantity,
+            closing_quantity,
         )
 
 
@@ -350,7 +360,9 @@ class LimitFuturesOrder(FuturesExchangeOrder):
         if self.limit_price <= Decimal(0):
             raise errors.Error("Limit price must be > 0")
         if self.limit_price != helpers.round_decimal_to_increment(
-            self.limit_price, Decimal(contract_info.price_increment), contract_info.quote_precision
+            self.limit_price,
+            Decimal(contract_info.price_increment),
+            contract_info.quote_precision,
         ):
             raise errors.Error(
                 "{} is not a multiple of {}".format(
@@ -362,7 +374,9 @@ class LimitFuturesOrder(FuturesExchangeOrder):
         # It will be the limit price or a better one.
         return self.limit_price
 
-    def create_order(self, id: str) -> orders.Order:
+    def create_order(
+        self, id: str, opening_quantity=Decimal(0), closing_quantity=Decimal(0)
+    ) -> orders.Order:
         assert isinstance(self._pair, Contract)
         return orders.LimitFuturesOrder(
             id,
@@ -371,6 +385,8 @@ class LimitFuturesOrder(FuturesExchangeOrder):
             self.quantity,
             self._limit_price,
             orders.OrderState.OPEN,
+            opening_quantity,
+            closing_quantity,
         )
 
 
@@ -406,7 +422,9 @@ class StopFuturesOrder(FuturesExchangeOrder):
         if self.stop_price <= Decimal(0):
             raise errors.Error("Stop price must be > 0")
         if self.stop_price != helpers.round_decimal_to_increment(
-            self.stop_price, Decimal(contract_info.price_increment), contract_info.quote_precision
+            self.stop_price,
+            Decimal(contract_info.price_increment),
+            contract_info.quote_precision,
         ):
             raise errors.Error(
                 "{} is not a multiple of {}".format(
@@ -418,7 +436,9 @@ class StopFuturesOrder(FuturesExchangeOrder):
         # It should be around the stop price, or at least we hope so.
         return self.stop_price
 
-    def create_order(self, id: str) -> orders.Order:
+    def create_order(
+        self, id: str, opening_quantity=Decimal(0), closing_quantity=Decimal(0)
+    ) -> orders.Order:
         assert isinstance(self._pair, Contract)
         return orders.StopFuturesOrder(
             id,
@@ -427,4 +447,6 @@ class StopFuturesOrder(FuturesExchangeOrder):
             self.quantity,
             self._stop_price,
             orders.OrderState.OPEN,
+            opening_quantity,
+            closing_quantity,
         )

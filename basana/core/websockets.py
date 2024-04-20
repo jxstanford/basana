@@ -40,10 +40,14 @@ class ChannelEventSource(event.FifoQueueEventSource):
 
 
 class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
-    """"Base class for channel based web socket clients."""
+    """ "Base class for channel based web socket clients."""
+
     def __init__(
-            self, url: str, session: Optional[aiohttp.ClientSession] = None, config_overrides: dict = {},
-            heartbeat: float = 30
+        self,
+        url: str,
+        session: Optional[aiohttp.ClientSession] = None,
+        config_overrides: dict = {},
+        heartbeat: float = 30,
     ):
         super().__init__()
         self._url = url
@@ -73,7 +77,11 @@ class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
         logger.error(logs.StructuredMessage("Error", src=self, error=error))
 
     async def on_unknown_message(self, message: aiohttp.WSMessage):
-        logger.warning(logs.StructuredMessage("Unknown message", src=self, type=message.type, data=message.data))
+        logger.warning(
+            logs.StructuredMessage(
+                "Unknown message", src=self, type=message.type, data=message.data
+            )
+        )
 
     async def main(self):
         assert not self._run_called, "run already called"
@@ -87,11 +95,17 @@ class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
                 await asyncio.sleep(self.backoff_secs - prev_attemp_age)
 
             try:
-                logger.debug(logs.StructuredMessage("Connecting websocket", src=self, url=self._url))
+                logger.debug(
+                    logs.StructuredMessage(
+                        "Connecting websocket", src=self, url=self._url
+                    )
+                )
                 last_connect_ts = time.time()
-                async with helpers.use_or_create_session(session=self._session) as session, \
-                        session.ws_connect(self._url, heartbeat=self._heartbeat) as ws_cli, \
-                        helpers.TaskGroup() as tg:
+                async with helpers.use_or_create_session(
+                    session=self._session
+                ) as session, session.ws_connect(
+                    self._url, heartbeat=self._heartbeat
+                ) as ws_cli, helpers.TaskGroup() as tg:
 
                     # Turn this off since we just reconnected.
                     self._reconnect_request.clear()
@@ -109,7 +123,7 @@ class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def subscribe_to_channels(
-            self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse
+        self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse
     ):
         raise NotImplementedError()
 

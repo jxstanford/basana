@@ -23,6 +23,6 @@ DEFAULTS = {
         "websockets": {
             "base_url": "wss://stream.binance.com/",
             "heartbeat": 30,
-        }
+        },
     }
 }

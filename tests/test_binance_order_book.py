@@ -33,40 +33,26 @@ from basana.external.binance import exchange, order_book
 ORDER_BOOK = {
     "lastUpdateId": 27229732069,
     "bids": [
-        [
-            "16757.47000000",
-            "0.04893000"
-        ],
-        [
-            "16757.41000000",
-            "0.00073000"
-        ],
-        [
-            "16756.52000000",
-            "0.00690000"
-        ]
+        ["16757.47000000", "0.04893000"],
+        ["16757.41000000", "0.00073000"],
+        ["16756.52000000", "0.00690000"],
     ],
     "asks": [
-        [
-            "16758.13000000",
-            "0.00682000"
-        ],
-        [
-            "16758.55000000",
-            "0.04963000"
-        ],
-        [
-            "16759.25000000",
-            "0.00685000"
-        ]
-    ]
+        ["16758.13000000", "0.00682000"],
+        ["16758.55000000", "0.04963000"],
+        ["16759.25000000", "0.00685000"],
+    ],
 }
 
 
 @pytest.fixture()
 def binance_http_api_mock():
     with aioresponses.aioresponses() as m:
-        m.get(re.compile(r"http://binance.mock/api/v3/depth\\?.*"), status=200, payload=ORDER_BOOK)
+        m.get(
+            re.compile(r"http://binance.mock/api/v3/depth\\?.*"),
+            status=200,
+            payload=ORDER_BOOK,
+        )
         yield m
 
 
@@ -84,10 +70,15 @@ def test_poll_ok_with_custom_session(binance_http_api_mock, realtime_dispatcher)
         async with aiohttp.ClientSession() as session:
             realtime_dispatcher.subscribe(
                 order_book.PollOrderBook(
-                    p, 0.5, limit=100, session=session,
-                    config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+                    p,
+                    0.5,
+                    limit=100,
+                    session=session,
+                    config_overrides={
+                        "api": {"http": {"base_url": "http://binance.mock/"}}
+                    },
                 ),
-                on_order_book_event
+                on_order_book_event,
             )
 
             await realtime_dispatcher.run()
@@ -102,16 +93,21 @@ def test_poll_ok_with_custom_session(binance_http_api_mock, realtime_dispatcher)
     assert last_ob.asks[1].volume == Decimal("0.04963")
 
 
-@pytest.mark.parametrize("response_status, response_body", [
-    (500, {}),
-])
+@pytest.mark.parametrize(
+    "response_status, response_body",
+    [
+        (500, {}),
+    ],
+)
 def test_unhandled_exception_during_poll(
     response_status, response_body, binance_http_api_mock, realtime_dispatcher, caplog
 ):
     caplog.set_level(logging.INFO)
     binance_http_api_mock.clear()
     binance_http_api_mock.get(
-        re.compile(r"http://binance.mock/api/v3/depth\\?.*"), status=response_status, payload=response_body
+        re.compile(r"http://binance.mock/api/v3/depth\\?.*"),
+        status=response_status,
+        payload=response_body,
     )
 
     async def on_order_book_event(*args, **kwargs):
@@ -124,8 +120,12 @@ def test_unhandled_exception_during_poll(
     async def test_main():
         async with aiohttp.ClientSession() as session:
             poller = order_book.PollOrderBook(
-                pair.Pair("BTC", "USDT"), 0.5, session=session,
-                config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+                pair.Pair("BTC", "USDT"),
+                0.5,
+                session=session,
+                config_overrides={
+                    "api": {"http": {"base_url": "http://binance.mock/"}}
+                },
             )
             poller.on_error = lambda error: on_error(poller, error)
             realtime_dispatcher.subscribe(poller, on_order_book_event)
@@ -161,15 +161,21 @@ def test_websocket_ok(realtime_dispatcher):
         await websocket.send(json.dumps({"result": None, "id": message["id"]}))
 
         while True:
-            await websocket.send(json.dumps({"stream": "btcusdt@depth10", "data": ORDER_BOOK}))
-            await websocket.send(json.dumps({"stream": "btcusdt@depth20", "data": ORDER_BOOK}))
+            await websocket.send(
+                json.dumps({"stream": "btcusdt@depth10", "data": ORDER_BOOK})
+            )
+            await websocket.send(
+                json.dumps({"stream": "btcusdt@depth20", "data": ORDER_BOOK})
+            )
             await asyncio.sleep(0.1)
 
     async def test_main():
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
             config_overrides = {"api": {"websockets": {"base_url": ws_uri}}}
-            e = exchange.Exchange(realtime_dispatcher, config_overrides=config_overrides)
+            e = exchange.Exchange(
+                realtime_dispatcher, config_overrides=config_overrides
+            )
             e.subscribe_to_order_book_events(p, on_order_book_10)
             e.subscribe_to_order_book_events(p, on_order_book_20, depth=20)
 
@@ -204,7 +210,9 @@ def test_websocket_error(realtime_dispatcher, caplog):
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
             config_overrides = {"api": {"websockets": {"base_url": ws_uri}}}
-            e = exchange.Exchange(realtime_dispatcher, config_overrides=config_overrides)
+            e = exchange.Exchange(
+                realtime_dispatcher, config_overrides=config_overrides
+            )
             e.subscribe_to_order_book_events(p, on_order_book_event)
 
             await asyncio.gather(realtime_dispatcher.run(), stop_on_error(timeout))

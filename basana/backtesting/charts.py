@@ -43,6 +43,7 @@ class DataPointFromSequence:
 
     :param seq: The sequence that will be used to get the value.
     """
+
     def __init__(self, seq: Sequence[Any]):
         self._seq = seq
 
@@ -75,7 +76,9 @@ class LineChart(metaclass=abc.ABCMeta):
 
 
 class PairLineChart(LineChart):
-    def __init__(self, pair: Pair, include_buys: bool, include_sells: bool, exchange: Exchange):
+    def __init__(
+        self, pair: Pair, include_buys: bool, include_sells: bool, exchange: Exchange
+    ):
         self._pair = pair
         self._include_buys = include_buys
         self._include_sells = include_sells
@@ -97,16 +100,30 @@ class PairLineChart(LineChart):
         if self._include_buys:
             x, y = self._get_order_fills(OrderOperation.BUY).get_x_y()
             figure.add_trace(
-                go.Scatter(x=x, y=y, name="Buy", mode="markers", marker=dict(symbol="arrow-up", size=12)),
-                row=row, col=1
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    name="Buy",
+                    mode="markers",
+                    marker=dict(symbol="arrow-up", size=12),
+                ),
+                row=row,
+                col=1,
             )
 
         # Add a trace with sell prices.
         if self._include_sells:
             x, y = self._get_order_fills(OrderOperation.SELL).get_x_y()
             figure.add_trace(
-                go.Scatter(x=x, y=y, name="Sell", mode="markers", marker=dict(symbol="arrow-down", size=12)),
-                row=row, col=1
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    name="Sell",
+                    mode="markers",
+                    marker=dict(symbol="arrow-down", size=12),
+                ),
+                row=row,
+                col=1,
             )
 
         # Add one trace per indicator.
@@ -122,14 +139,16 @@ class PairLineChart(LineChart):
         ret = TimeSeries()
         orders = filter(
             lambda order: order.pair == self._pair and order.operation == op,
-            self._exchange._get_all_orders()
+            self._exchange._get_all_orders(),
         )
         pair_info = self._exchange._get_pair_info(self._pair)
         for order in orders:
             for fill in order.fills:
                 base_amount = fill.balance_updates[order.pair.base_symbol]
                 quote_amount = fill.balance_updates[order.pair.quote_symbol]
-                price = -helpers.truncate_decimal(quote_amount / base_amount, pair_info.quote_precision)
+                price = -helpers.truncate_decimal(
+                    quote_amount / base_amount, pair_info.quote_precision
+                )
                 ret.add_value(fill.when, price)
         return ret
 
@@ -185,7 +204,9 @@ class PortfolioValueLineChart(LineChart):
     def add_traces(self, figure: go.Figure, row: int):
         # Add a trace with the portfolio values.
         x, y = self._ts.get_x_y()
-        figure.add_trace(go.Scatter(x=x, y=y, name=f"Portfolio ({self._symbol})"), row=row, col=1)
+        figure.add_trace(
+            go.Scatter(x=x, y=y, name=f"Portfolio ({self._symbol})"), row=row, col=1
+        )
 
     async def _on_any_event(self, event: event.Event):
         portfolio_value = Decimal(0)
@@ -201,9 +222,15 @@ class PortfolioValueLineChart(LineChart):
             if rate:
                 portfolio_value += rate * balance.total
             else:
-                logger.error(logs.StructuredMessage("Price missing", pair=Pair(symbol, self._symbol)))
+                logger.error(
+                    logs.StructuredMessage(
+                        "Price missing", pair=Pair(symbol, self._symbol)
+                    )
+                )
 
-        self._ts.add_value(event.when, helpers.round_decimal(portfolio_value, self._precision))
+        self._ts.add_value(
+            event.when, helpers.round_decimal(portfolio_value, self._precision)
+        )
 
 
 class CustomLineChart(LineChart):
@@ -239,11 +266,16 @@ class LineCharts:
 
     :param exchange: The backtesting exchange.
     """
+
     def __init__(self, exchange: Exchange):
         self._exchange = exchange
-        self._balance_charts: Dict[str, AccountBalanceLineChart] = collections.OrderedDict()
+        self._balance_charts: Dict[str, AccountBalanceLineChart] = (
+            collections.OrderedDict()
+        )
         self._pair_charts: Dict[Pair, PairLineChart] = collections.OrderedDict()
-        self._portfolio_charts: Dict[str, PortfolioValueLineChart] = collections.OrderedDict()
+        self._portfolio_charts: Dict[str, PortfolioValueLineChart] = (
+            collections.OrderedDict()
+        )
         self._custom_charts: Dict[str, CustomLineChart] = collections.OrderedDict()
 
     def add_balance(self, symbol: str):
@@ -264,18 +296,26 @@ class LineCharts:
             * If the portfolio value can't be calculated at any given point, for example because there is no price for
               a given instrument, an error will be logged.
         """
-        self._portfolio_charts[symbol] = PortfolioValueLineChart(symbol, self._exchange, precision=precision)
+        self._portfolio_charts[symbol] = PortfolioValueLineChart(
+            symbol, self._exchange, precision=precision
+        )
 
-    def add_pair(self, pair: Pair, include_buys: bool = True, include_sells: bool = True):
+    def add_pair(
+        self, pair: Pair, include_buys: bool = True, include_sells: bool = True
+    ):
         """Adds a chart with the pair values.
 
         :param pair: The pair.
         :param include_buys: True to include buy prices.
         :param include_sells: True to include sell prices.
         """
-        self._pair_charts[pair] = PairLineChart(pair, include_buys, include_sells, self._exchange)
+        self._pair_charts[pair] = PairLineChart(
+            pair, include_buys, include_sells, self._exchange
+        )
 
-    def add_pair_indicator(self, name: str, pair: Pair, get_data_point: ChartDataPointFn):
+    def add_pair_indicator(
+        self, name: str, pair: Pair, get_data_point: ChartDataPointFn
+    ):
         """Adds a technical indicator to a pair's chart.
 
         :param name: The name of the indicator.
@@ -310,8 +350,12 @@ class LineCharts:
             fig.show()
 
     def save(
-            self, path: str, width: Optional[int] = None, height: Optional[int] = None,
-            scale: Optional[Union[int, float]] = None, show_legend: bool = True
+        self,
+        path: str,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        scale: Optional[Union[int, float]] = None,
+        show_legend: bool = True,
     ):
         """Saves the chart to a file.
 
@@ -340,7 +384,10 @@ class LineCharts:
         if charts:
             subplot_titles = [chart.get_title() for chart in charts]
             figure = plotly.subplots.make_subplots(
-                rows=len(charts), cols=1, shared_xaxes=True, subplot_titles=subplot_titles
+                rows=len(charts),
+                cols=1,
+                shared_xaxes=True,
+                subplot_titles=subplot_titles,
             )
 
             row = 1

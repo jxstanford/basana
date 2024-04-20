@@ -30,7 +30,11 @@ def test_order_gets_completed():
     assert balances.get_balance_on_hold_for_order("1", "USD") == Decimal(0)
 
     order = orders.MarketFuturesOrder(
-        "1", orders.OrderOperation.BUY, pair.Contract("ES", "USD", 1000, 50), Decimal("1"), orders.OrderState.OPEN
+        "1",
+        orders.OrderOperation.BUY,
+        pair.Contract("ES", "USD", 1000, 50),
+        Decimal("1"),
+        orders.OrderState.OPEN,
     )
     balances.order_accepted(order, {"USD": Decimal("2100")})
 
@@ -66,41 +70,58 @@ def test_order_gets_completed():
 
 
 def test_order_gets_canceled():
-    balances = account_balances.AccountBalances({"USD": Decimal(10000)})
+    balances = account_balances.FuturesAccountBalances({"USD": Decimal(100_000)})
 
-    assert balances.get_available_balance("USD") == Decimal(10000)
+    assert balances.get_available_balance("USD") == Decimal(100_000)
     assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_available_balance("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
+    assert balances.get_balance_on_margin("USD") == Decimal(0)
+    assert balances.get_available_balance("ES") == Decimal(0)
+    assert balances.get_balance_on_hold("ES") == Decimal(0)
     assert balances.get_balance_on_hold_for_order("1", "USD") == Decimal(0)
+    assert balances.get_balance_on_margin_for_order("1", "USD") == Decimal(0)
 
-    order = orders.MarketOrder(
-        "1", orders.OrderOperation.BUY, pair.Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN
+    order = orders.MarketFuturesOrder(
+        "1",
+        orders.OrderOperation.BUY,
+        pair.Contract("ES", "USD", 9500, 50),
+        Decimal("2"),
+        orders.OrderState.OPEN,
+        opening_quantity=Decimal("2"),
     )
-    balances.order_accepted(order, {"USD": Decimal("2100")})
+    balances.order_accepted(order, {"USD": Decimal("5")})
+    balances.order_margin_accepted(
+        order,
+        {"USD": order.opening_quantity * Decimal(order.contract.margin_requirement)},
+    )
 
-    assert balances.get_available_balance("USD") == Decimal(7900)
-    assert balances.get_balance_on_hold("USD") == Decimal(2100)
-    assert balances.get_available_balance("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(2100)
+    assert balances.get_available_balance("USD") == Decimal(99995)
+    assert balances.get_balance_on_hold("USD") == Decimal(5)
+    assert balances.get_balance_on_margin("USD") == Decimal(19000)
+    assert balances.get_available_balance("ES") == Decimal(0)
+    assert balances.get_balance_on_hold("ES") == Decimal(0)
+    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(5)
+    assert balances.get_balance_on_margin_for_order(order.id, "USD") == Decimal(19000)
 
-    balances.order_updated(order, {"BTC": Decimal("0.05"), "USD": Decimal("-1010")})
+    balances.order_updated(order, {"ES": Decimal("1"), "USD": Decimal("-2.50")})
 
-    assert balances.get_available_balance("USD") == Decimal(7900)
-    assert balances.get_balance_on_hold("USD") == Decimal(1090)
-    assert balances.get_available_balance("BTC") == Decimal("0.05")
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(1090)
+    assert balances.get_available_balance("USD") == Decimal(99_995)
+    assert balances.get_balance_on_hold("USD") == Decimal(2.50)
+    assert balances.get_balance_on_margin("USD") == Decimal(19000)
+    assert balances.get_available_balance("ES") == Decimal("1")
+    assert balances.get_balance_on_hold("ES") == Decimal(0)
+    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(2.50)
+    assert balances.get_balance_on_margin_for_order(order.id, "USD") == Decimal(19000)
 
     order.cancel()
     balances.order_updated(order, {})
 
-    assert balances.get_available_balance("USD") == Decimal(8990)
+    assert balances.get_available_balance("USD") == Decimal(99_997.50)
     assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_available_balance("BTC") == Decimal("0.05")
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
+    assert balances.get_balance_on_margin("USD") == Decimal(0)
+    assert balances.get_available_balance("ES") == Decimal(1)
+    assert balances.get_balance_on_hold("ES") == Decimal(0)
     assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(0)
+    assert balances.get_balance_on_margin_for_order(order.id, "USD") == Decimal(0)
 
 
 def test_symbols():
@@ -108,7 +129,11 @@ def test_symbols():
     assert balances.get_symbols() == ["USD"]
 
     order = orders.MarketFuturesOrder(
-        "1", orders.OrderOperation.BUY, pair.Contract("ES", "USD", 9500, 50), Decimal("2"), orders.OrderState.OPEN
+        "1",
+        orders.OrderOperation.BUY,
+        pair.Contract("ES", "USD", 9500, 50),
+        Decimal("2"),
+        orders.OrderState.OPEN,
     )
     balances.order_accepted(order, {"USD": Decimal("8000")})
     assert balances.get_symbols() == ["USD"]

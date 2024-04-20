@@ -31,7 +31,7 @@ class FeeStrategy(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def calculate_fees(
-            self, order: orders.Order, balance_updates: Dict[str, Decimal]
+        self, order: orders.Order, balance_updates: Dict[str, Decimal]
     ) -> Dict[str, Decimal]:
         """TODO."""
         raise NotImplementedError()
@@ -40,7 +40,9 @@ class FeeStrategy(metaclass=abc.ABCMeta):
 class NoFee(FeeStrategy):
     """This strategy applies no fees to the trades."""
 
-    def calculate_fees(self, order: orders.Order, balance_updates: Dict[str, Decimal]) -> Dict[str, Decimal]:
+    def calculate_fees(
+        self, order: orders.Order, balance_updates: Dict[str, Decimal]
+    ) -> Dict[str, Decimal]:
         return {}
 
 
@@ -57,7 +59,9 @@ class Percentage(FeeStrategy):
         self._percentage = percentage
         self._min_fee = min_fee
 
-    def calculate_fees(self, order: orders.Order, balance_updates: Dict[str, Decimal]) -> Dict[str, Decimal]:
+    def calculate_fees(
+        self, order: orders.Order, balance_updates: Dict[str, Decimal]
+    ) -> Dict[str, Decimal]:
         ret = {}
 
         # Fees are always charged in quote amount.
@@ -67,10 +71,36 @@ class Percentage(FeeStrategy):
         # calculate the total fees to charge, and subtract what we have charged so far.
         charged_fee_amount = order.fees.get(symbol, Decimal(0))
         assert charged_fee_amount <= Decimal(0), "Fees should always be negative"
-        total_quote_amount = order.balance_updates.get(symbol, Decimal(0)) + balance_updates.get(symbol, Decimal(0))
-        total_fee_amount = -max(abs(total_quote_amount) * self._percentage / Decimal(100), self._min_fee)
+        total_quote_amount = order.balance_updates.get(
+            symbol, Decimal(0)
+        ) + balance_updates.get(symbol, Decimal(0))
+        total_fee_amount = -max(
+            abs(total_quote_amount) * self._percentage / Decimal(100), self._min_fee
+        )
         pending_fee = total_fee_amount - charged_fee_amount
         if pending_fee < Decimal(0):
             ret[symbol] = pending_fee
+        return ret
+
+
+class PerContractFee(FeeStrategy):
+    """This strategy applies no fees to the trades."""
+
+    def __init__(self, fee: Decimal):
+        assert fee >= 0, f"Invalid fee amount {fee}"
+        self._fee = fee
+
+    def calculate_fees(
+        self, order: orders.FuturesOrder, balance_updates: Dict[str, Decimal]
+    ) -> Dict[str, Decimal]:
+
+        ret = {}
+
+        base_symbol = order.contract.base_symbol
+        quote_symbol = order.contract.quote_symbol
+
+        pending_fee = -abs(balance_updates.get(base_symbol)) * self._fee
+        if pending_fee < Decimal(0):
+            ret[quote_symbol] = pending_fee
 
         return ret

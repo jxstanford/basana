@@ -105,7 +105,9 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         assert order_info is not None
         assert not order_info.is_open
         # assert that the order.quote_quantity_filled is 1
-        assert e._orders.get_order(created_order.id).quote_quantity_filled == Decimal("0")
+        assert e._orders.get_order(created_order.id).quote_quantity_filled == Decimal(
+            "0"
+        )
 
         with pytest.raises(exchange.Error):
             await e.cancel_order(created_order.id)
@@ -206,7 +208,9 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
         )
         c = Contract("ES", "USD", 9500, 50)
         e.add_bar_source(
-            OHLCVTzBarSource(c, abs_data_path("ES-2024-01-02-1m.csv"), period='1m', sort=True)
+            OHLCVTzBarSource(
+                c, abs_data_path("ES-2024-01-02-1m.csv"), period="1m", sort=True
+            )
         )
         e.subscribe_to_bar_events(c, on_bar)
 

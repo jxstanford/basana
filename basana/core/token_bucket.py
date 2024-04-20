@@ -26,7 +26,9 @@ class TokenBucketLimiter:
     :param initial_tokens: The initial amount of tokens.
     """
 
-    def __init__(self, tokens_per_period: float, period_duration: int, initial_tokens=0):
+    def __init__(
+        self, tokens_per_period: float, period_duration: int, initial_tokens=0
+    ):
         assert tokens_per_period > 0
         assert period_duration > 0
         assert initial_tokens >= 0

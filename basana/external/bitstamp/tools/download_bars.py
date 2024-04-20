@@ -73,23 +73,43 @@ class CSVWriter:
         if not self._header_written:
             print("datetime,open,high,low,close,volume")
             self._header_written = True
-        print(",".join([
-            str(datetime.datetime.utcfromtimestamp(ohlc.open_timestamp)),
-            ohlc.open, ohlc.high, ohlc.low, ohlc.close, ohlc.volume
-        ]))
+        print(
+            ",".join(
+                [
+                    str(datetime.datetime.utcfromtimestamp(ohlc.open_timestamp)),
+                    ohlc.open,
+                    ohlc.high,
+                    ohlc.low,
+                    ohlc.close,
+                    ohlc.volume,
+                ]
+            )
+        )
 
 
 async def main(params: Optional[List[str]] = None, config_overrides: dict = {}):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--currency-pair", help="The currency pair.", required=True)
     parser.add_argument(
-        "-p", "--period", help="The period for the bars.", choices=period_to_step.keys(), required=True
+        "-c", "--currency-pair", help="The currency pair.", required=True
     )
     parser.add_argument(
-        "-s", "--start", help="The starting date YYYY-MM-DD format. Included in the range.", required=True
+        "-p",
+        "--period",
+        help="The period for the bars.",
+        choices=period_to_step.keys(),
+        required=True,
     )
     parser.add_argument(
-        "-e", "--end", help="The ending date YYYY-MM-DD format. Included in the range.", required=True
+        "-s",
+        "--start",
+        help="The starting date YYYY-MM-DD format. Included in the range.",
+        required=True,
+    )
+    parser.add_argument(
+        "-e",
+        "--end",
+        help="The ending date YYYY-MM-DD format. Included in the range.",
+        required=True,
     )
     args = parser.parse_args(args=params)
 
@@ -106,11 +126,15 @@ async def main(params: Optional[List[str]] = None, config_overrides: dict = {}):
     tb = token_bucket.TokenBucketLimiter(10, 1)
     writer = CSVWriter()
     async with aiohttp.ClientSession() as session:
-        cli = client.APIClient(session=session, tb=tb, config_overrides=config_overrides)
+        cli = client.APIClient(
+            session=session, tb=tb, config_overrides=config_overrides
+        )
         eof = False
         currency_pair = to_bitstamp_currency_pair(args.currency_pair)
         while not eof:
-            response = await cli.get_ohlc_data(currency_pair, step, 1000, start=start_ts, exclude_current_candle=True)
+            response = await cli.get_ohlc_data(
+                currency_pair, step, 1000, start=start_ts, exclude_current_candle=True
+            )
             eof = True
             for ohlc in response["data"]["ohlc"]:
                 eof = False

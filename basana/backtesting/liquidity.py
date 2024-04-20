@@ -100,8 +100,14 @@ class VolumeShareImpact(LiquidityStrategy):
     :param price_impact: Maximum price impact (percentage).
     """
 
-    def __init__(self, volume_limit_pct: Decimal = Decimal("25"), price_impact: Decimal = Decimal("10")):
-        assert volume_limit_pct >= Decimal(0), f"Invalid volume_limit_pct {volume_limit_pct}"
+    def __init__(
+        self,
+        volume_limit_pct: Decimal = Decimal("25"),
+        price_impact: Decimal = Decimal("10"),
+    ):
+        assert volume_limit_pct >= Decimal(
+            0
+        ), f"Invalid volume_limit_pct {volume_limit_pct}"
         assert price_impact >= Decimal(0), f"Invalid price_impact {price_impact}"
 
         self._volume_limit_pct = volume_limit_pct / Decimal(100)
@@ -116,7 +122,9 @@ class VolumeShareImpact(LiquidityStrategy):
     def _volume_share_impact(self, used_liquidity: Decimal) -> Decimal:
         # impact = (used_liquidity / (used_liquidity + available_liquidity)) ** 2 * price_impact
         assert used_liquidity >= Decimal(0), f"Invalid used_liquidity {used_liquidity}"
-        assert used_liquidity <= self._total_liquidity, f"Invalid used_liquidity {used_liquidity}"
+        assert (
+            used_liquidity <= self._total_liquidity
+        ), f"Invalid used_liquidity {used_liquidity}"
 
         used_pct = used_liquidity / self._total_liquidity
         return used_pct ** Decimal(2) * self._price_impact_pct
@@ -151,7 +159,9 @@ class VolumeShareImpact(LiquidityStrategy):
         # used_liquidity = self._total_liquidity * sqrt(price_impact / self._price_impact_pct)
 
         price_impact = min(price_impact, self._price_impact_pct)
-        used_liquidity = self._total_liquidity * (price_impact / self._price_impact_pct).sqrt()
+        used_liquidity = (
+            self._total_liquidity * (price_impact / self._price_impact_pct).sqrt()
+        )
 
         assert used_liquidity <= self._total_liquidity
         return max(Decimal(0), used_liquidity - self._used_liquidity)

@@ -31,7 +31,9 @@ from basana.external.bitstamp import exchange
 def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher):
     if not public_events:
         bitstamp_http_api_mock.post(
-            "http://bitstamp.mock/api/v2/websockets_token/", status=200, payload={"user_id": "1234", "token": "1234"}
+            "http://bitstamp.mock/api/v2/websockets_token/",
+            status=200,
+            payload={"user_id": "1234", "token": "1234"},
         )
 
     p = pair.Pair("BTC", "USD")
@@ -54,34 +56,40 @@ def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher
             # Keep on sending order events while the connection is open.
             while websocket.open:
                 for event in ["order_created", "order_changed", "order_deleted"]:
-                    await websocket.send(json.dumps({
-                        "data": {
-                            "id": 1531241723363332,
-                            "id_str": "1531241723363332",
-                            "order_type": 1,
-                            "datetime": "1662673286",
-                            "microtimestamp": "1662673286025000",
-                            "amount": 0.28435528,
-                            "amount_str": "0.28435528",
-                            "price": 19342,
-                            "price_str": "19342"
-                        },
-                        "channel": channel,
-                        "event": event
-                    }))
+                    await websocket.send(
+                        json.dumps(
+                            {
+                                "data": {
+                                    "id": 1531241723363332,
+                                    "id_str": "1531241723363332",
+                                    "order_type": 1,
+                                    "datetime": "1662673286",
+                                    "microtimestamp": "1662673286025000",
+                                    "amount": 0.28435528,
+                                    "amount_str": "0.28435528",
+                                    "price": 19342,
+                                    "price_str": "19342",
+                                },
+                                "channel": channel,
+                                "event": event,
+                            }
+                        )
+                    )
                 await asyncio.sleep(0.1)
 
     async def test_main():
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
             e = exchange.Exchange(
-                realtime_dispatcher, "key", "secret",
+                realtime_dispatcher,
+                "key",
+                "secret",
                 config_overrides={
                     "api": {
                         "http": {"base_url": "http://bitstamp.mock/"},
-                        "websockets": {"base_url": ws_uri}
+                        "websockets": {"base_url": ws_uri},
                     }
-                }
+                },
             )
             if public_events:
                 e.subscribe_to_public_order_events(p, on_order_event)
@@ -102,10 +110,13 @@ def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher
     assert last_order.amount == Decimal("0.28435528")
 
 
-@pytest.mark.parametrize("server_message, expected_log", [
-    ({"event": "bts:subscription_failed"}, "Error"),
-    ({"event": "bts:error"}, "Error"),
-])
+@pytest.mark.parametrize(
+    "server_message, expected_log",
+    [
+        ({"event": "bts:subscription_failed"}, "Error"),
+        ({"event": "bts:error"}, "Error"),
+    ],
+)
 def test_error_in_websocket(server_message, expected_log, realtime_dispatcher, caplog):
     p = pair.Pair("BTC", "USD")
 
@@ -128,13 +139,15 @@ def test_error_in_websocket(server_message, expected_log, realtime_dispatcher, c
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
             e = exchange.Exchange(
-                realtime_dispatcher, "key", "secret",
+                realtime_dispatcher,
+                "key",
+                "secret",
                 config_overrides={
                     "api": {
                         "http": {"base_url": "http://bitstamp.mock/"},
-                        "websockets": {"base_url": ws_uri}
+                        "websockets": {"base_url": ws_uri},
                     }
-                }
+                },
             )
             e.subscribe_to_public_order_events(p, on_order_event)
             await asyncio.gather(realtime_dispatcher.run(), stop_on_error(timeout))
@@ -144,8 +157,9 @@ def test_error_in_websocket(server_message, expected_log, realtime_dispatcher, c
 
 def test_authentication_fails(bitstamp_http_api_mock, realtime_dispatcher, caplog):
     bitstamp_http_api_mock.post(
-        "http://bitstamp.mock/api/v2/websockets_token/", status=403,
-        payload={"status": "error", "reason": "Invalid signature", "code": "API0005"}
+        "http://bitstamp.mock/api/v2/websockets_token/",
+        status=403,
+        payload={"status": "error", "reason": "Invalid signature", "code": "API0005"},
     )
 
     p = pair.Pair("BTC", "USD")
@@ -159,19 +173,23 @@ def test_authentication_fails(bitstamp_http_api_mock, realtime_dispatcher, caplo
 
     async def server_main(websocket):
         await websocket.recv()
-        assert False, "The subscription message should not arrive since authentication failed"
+        assert (
+            False
+        ), "The subscription message should not arrive since authentication failed"
 
     async def test_main(timeout):
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
             e = exchange.Exchange(
-                realtime_dispatcher, "key", "secret",
+                realtime_dispatcher,
+                "key",
+                "secret",
                 config_overrides={
                     "api": {
                         "http": {"base_url": "http://bitstamp.mock/"},
-                        "websockets": {"base_url": ws_uri}
+                        "websockets": {"base_url": ws_uri},
                     }
-                }
+                },
             )
             e.subscribe_to_private_order_events(p, on_order_event)
 

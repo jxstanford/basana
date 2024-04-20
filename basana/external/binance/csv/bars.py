@@ -30,13 +30,19 @@ period_to_timedelta = {
 
 class BarSource(csv.EventSource):
     def __init__(
-            self, pair: pair.Pair, csv_path: str, period: str,
-            sort: bool = False, tzinfo: datetime.tzinfo = datetime.timezone.utc,
-            dict_reader_kwargs: dict = {}
+        self,
+        pair: pair.Pair,
+        csv_path: str,
+        period: str,
+        sort: bool = False,
+        tzinfo: datetime.tzinfo = datetime.timezone.utc,
+        dict_reader_kwargs: dict = {},
     ):
         # The datetime in the files are the beginning of the period but we need to generate the event at the period's
         # end.
         timedelta = period_to_timedelta.get(period)
         assert timedelta is not None, "Invalid period"
         self.row_parser = RowParser(pair, tzinfo=tzinfo, timedelta=timedelta)
-        super().__init__(csv_path, self.row_parser, sort=sort, dict_reader_kwargs=dict_reader_kwargs)
+        super().__init__(
+            csv_path, self.row_parser, sort=sort, dict_reader_kwargs=dict_reader_kwargs
+        )

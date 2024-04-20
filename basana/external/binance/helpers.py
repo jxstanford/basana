@@ -31,7 +31,9 @@ def get_signature(api_secret: str, qs_params: dict = {}, data: dict = {}) -> str
         total_params += urlencode(qs_params)
     if data:
         total_params += urlencode(data)
-    return hmac.new(api_secret.encode(), msg=total_params.encode("utf-8"), digestmod=hashlib.sha256).hexdigest()
+    return hmac.new(
+        api_secret.encode(), msg=total_params.encode("utf-8"), digestmod=hashlib.sha256
+    ).hexdigest()
 
 
 def pair_to_order_book_symbol(pair: pair.Pair) -> str:
@@ -74,7 +76,9 @@ def oco_order_status_is_open(list_order_status: str) -> bool:
         "ALL_DONE": False,
         "REJECT": False,
     }.get(list_order_status)
-    assert is_open is not None, "No mapping for {} list order status".format(list_order_status)
+    assert is_open is not None, "No mapping for {} list order status".format(
+        list_order_status
+    )
     return is_open
 
 
@@ -88,7 +92,9 @@ def get_optional_decimal(mapping: dict, key: str, skip_zero: bool) -> Optional[D
 
 
 def timestamp_to_datetime(timestamp: int) -> datetime.datetime:
-    return datetime.datetime.utcfromtimestamp(timestamp / 1e3).replace(tzinfo=datetime.timezone.utc)
+    return datetime.datetime.utcfromtimestamp(timestamp / 1e3).replace(
+        tzinfo=datetime.timezone.utc
+    )
 
 
 def datetime_to_timestamp(datetime: datetime.datetime) -> int:

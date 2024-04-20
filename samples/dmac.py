@@ -21,7 +21,12 @@ import basana as bs
 
 # Strategy based on Dual Moving Average Crossover.
 class Strategy(bs.TradingSignalSource):
-    def __init__(self, dispatcher: bs.EventDispatcher, short_term_period: int, long_term_period: int):
+    def __init__(
+        self,
+        dispatcher: bs.EventDispatcher,
+        short_term_period: int,
+        long_term_period: int,
+    ):
         super().__init__(dispatcher)
         self._st_sma = EMA(period=short_term_period)
         self._lt_sma = EMA(period=long_term_period)
@@ -38,7 +43,17 @@ class Strategy(bs.TradingSignalSource):
 
         # Short term MA crossed above long term MA ?
         if self._st_sma[-2] <= self._lt_sma[-2] and self._st_sma[-1] > self._lt_sma[-1]:
-            self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair))
+            self.push(
+                bs.TradingSignal(
+                    bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair
+                )
+            )
         # Short term MA crossed below long term MA ?
-        elif self._st_sma[-2] >= self._lt_sma[-2] and self._st_sma[-1] < self._lt_sma[-1]:
-            self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair))
+        elif (
+            self._st_sma[-2] >= self._lt_sma[-2] and self._st_sma[-1] < self._lt_sma[-1]
+        ):
+            self.push(
+                bs.TradingSignal(
+                    bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair
+                )
+            )

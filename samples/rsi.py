@@ -21,7 +21,13 @@ import basana as bs
 
 # Strategy based on RSI: https://www.investopedia.com/terms/r/rsi.asp
 class Strategy(bs.TradingSignalSource):
-    def __init__(self, dispatcher: bs.EventDispatcher, period: int, oversold_level: float, overbought_level: float):
+    def __init__(
+        self,
+        dispatcher: bs.EventDispatcher,
+        period: int,
+        oversold_level: float,
+        overbought_level: float,
+    ):
         super().__init__(dispatcher)
         self._oversold_level = oversold_level
         self._overbought_level = overbought_level
@@ -37,7 +43,18 @@ class Strategy(bs.TradingSignalSource):
 
         # RSI crossed below oversold level
         if self.rsi[-2] >= self._oversold_level and self.rsi[-1] < self._oversold_level:
-            self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair))
+            self.push(
+                bs.TradingSignal(
+                    bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair
+                )
+            )
         # RSI crossed above overbought level
-        elif self.rsi[-2] <= self._overbought_level and self.rsi[-1] > self._overbought_level:
-            self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair))
+        elif (
+            self.rsi[-2] <= self._overbought_level
+            and self.rsi[-1] > self._overbought_level
+        ):
+            self.push(
+                bs.TradingSignal(
+                    bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair
+                )
+            )

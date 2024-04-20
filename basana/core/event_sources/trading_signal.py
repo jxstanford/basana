@@ -28,7 +28,9 @@ class TradingSignal(event.Event):
     :param pair: The pair to trade.
     """
 
-    def __init__(self, when: datetime.datetime, operation: enums.OrderOperation, pair: pair.Pair):
+    def __init__(
+        self, when: datetime.datetime, operation: enums.OrderOperation, pair: pair.Pair
+    ):
         super().__init__(when)
         #: The operation.
         self.operation = operation
@@ -45,13 +47,17 @@ class TradingSignalSource(event.FifoQueueEventSource):
     """
 
     def __init__(
-            self, dispatcher: dispatcher.EventDispatcher, producer: Optional[event.Producer] = None,
-            events: List[event.Event] = []
+        self,
+        dispatcher: dispatcher.EventDispatcher,
+        producer: Optional[event.Producer] = None,
+        events: List[event.Event] = [],
     ):
         super().__init__(producer=producer, events=events)
         self._dispatcher = dispatcher
 
-    def subscribe_to_trading_signals(self, event_handler: Callable[[TradingSignal], Awaitable[Any]]):
+    def subscribe_to_trading_signals(
+        self, event_handler: Callable[[TradingSignal], Awaitable[Any]]
+    ):
         """Registers an async callable that will be called when a new trading signal is available.
 
         :param event_handler: An async callable that receives an trading signal.

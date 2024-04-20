@@ -500,7 +500,10 @@ class Exchange:
                 "Processing order", order_id=order.id, balance_updates=balance_updates
             )
         )
-        if (order.pair.base_symbol not in balance_updates or order.pair.quote_symbol not in balance_updates):
+        if (
+            order.pair.base_symbol not in balance_updates
+            or order.pair.quote_symbol not in balance_updates
+        ):
             order_not_filled()
             return
 
@@ -578,7 +581,9 @@ class Exchange:
 
     def _check_available_balance(self, required_balance: Dict[str, Decimal]):
         for symbol, required in required_balance.items():
-            assert required >= Decimal(0), f"Invalid required balance {required} for {symbol}"
+            assert required >= Decimal(
+                0
+            ), f"Invalid required balance {required} for {symbol}"
             available_balance = self._balances.get_available_balance(symbol)
             if available_balance < required:
                 raise errors.Error(
@@ -603,8 +608,9 @@ class Exchange:
         if not estimated_fill_price:
             estimated_fill_price = await self._get_last_price(order_request.pair)
         if estimated_fill_price:
-            estimated_balance_updates[order_request.pair.quote_symbol] = (order_request.amount * estimated_fill_price *
-                                                                          -base_sign)
+            estimated_balance_updates[order_request.pair.quote_symbol] = (
+                order_request.amount * estimated_fill_price * -base_sign
+            )
 
         estimated_balance_updates = self._round_balance_updates(
             order_request.pair, estimated_balance_updates
@@ -687,13 +693,27 @@ class FuturesExchange(Exchange):
         contract_info = await self.get_contract_info(order_request.contract)
         order_request.validate(contract_info)
 
-        # Check balances.
-        # TODO: Implement the margin requirement and fee estimation
+        trade_side_quantities = bt_helpers.get_trade_side_quantities(
+            self._balances.get_available_balance(order_request.contract.base_symbol),
+            order_request.operation,
+            order_request.quantity,
+        )
+
+        # Check margin and balance
+        required_margin = await self._estimate_required_margin(
+            order_request, trade_side_quantities
+        )
         required_balances = await self._estimate_required_balances(order_request)
-        self._check_available_balance(required_balances)
+        total_required = bt_helpers.add_amounts(required_margin, required_balances)
+        self._check_available_balance(total_required)
 
         # Create and accept the order.
-        order = order_request.create_order(uuid.uuid4().hex)
+        order = order_request.create_order(
+            uuid.uuid4().hex,
+            trade_side_quantities["opening"],
+            trade_side_quantities["closing"],
+        )
+        assert isinstance(order, orders.FuturesOrder)
         self._orders.add_order(order)
 
         # Update/hold balances.
@@ -777,54 +797,42 @@ class FuturesExchange(Exchange):
             requests.StopFuturesOrder(operation, contract, quantity, stop_price)
         )
 
-    # TODO: Implement the margin requirement and fee estimation
+    async def _estimate_required_margin(
+        self,
+        order_request: requests.FuturesExchangeOrder,
+        trade_side_quantities: Dict[str, Decimal],
+    ) -> Dict[str, Decimal]:
+
+        # required margin will be the margin requirement * net opening quantity
+        net_opening_quantity = (
+            trade_side_quantities["opening"] - trade_side_quantities["closing"]
+        )
+        estimated_margin_updates = {}
+        if net_opening_quantity > 0:
+            estimated_margin_updates = {
+                order_request.contract.quote_symbol: net_opening_quantity
+                * Decimal(order_request.contract.margin_requirement)
+            }
+
+        return {symbol: -amount for symbol, amount in estimated_margin_updates.items()}
+
     async def _estimate_required_balances(
-            self, order_request: requests.FuturesExchangeOrder
+        self, order_request: requests.FuturesExchangeOrder
     ) -> Dict[str, Decimal]:
         """
-        Checks margin requirements and fees and returns an estimate of the required balances.
-        Determins if an order is opening, closing, or both. Closing order only require fees while opening
-        orders require margin and fees. Orders can be a mix of opening and closing quantities.
-
-        TODO: also need to determine where to store margin hold and release them when closing orders.
+        For futures, this is limited to fees. Margin requirements are treated separately from account balances.
         """
-        # Build a dictionary of balance updates suitable for calculating fees.
-        trade_side_quantities = bt_helpers.get_trade_side_quantities(
-            self._balances.get_available_balance(order_request.contract.base_symbol),
-            order_request.operation,
-            order_request.quantity,
-        )
-
-        # we need to find the fill price of the N orders that we're closing
-        if trade_side_quantities["closing"] > 0:
-            # filter all orders by symbol
-            # TODO: not sure if this will work due to different types
-            orders = [order for order in self._get_all_orders() if order.pair == order_request.contract]
-            all_orders_by_date = sorted(self._get_all_orders(), key=lambda x: x.created_at)
-            all_orders_by_date
-
 
         base_sign = bt_helpers.get_base_sign_for_operation(order_request.operation)
         estimated_balance_updates = {
             order_request.contract.base_symbol: order_request.quantity * base_sign
         }
-        estimated_fill_price = order_request.get_estimated_fill_price()
-        if not estimated_fill_price:
-            estimated_fill_price = await self._get_last_price(order_request.contract)
-        if estimated_fill_price:
-            estimated_balance_updates[order_request.contract.quote_symbol] = (
-                    order_request.amount * estimated_fill_price * -base_sign
-            )
-        estimated_balance_updates = self._round_balance_updates(
-            order_request.pair, estimated_balance_updates
-        )
 
         # Calculate fees.
         fees = {}
         if len(estimated_balance_updates) == 2:
             order = order_request.create_order("temporary")
             fees = self._fee_strategy.calculate_fees(order, estimated_balance_updates)
-            fees = self._round_fees(order_request.pair, fees)
         estimated_balance_updates = bt_helpers.add_amounts(
             estimated_balance_updates, fees
         )
@@ -854,6 +862,8 @@ class FuturesExchange(Exchange):
                 )
 
         prev_state = order.state
+        # Unlike the parent order class, get_balance_updates for FuturesOrders return a base symbol quantity and an
+        # order price
         balance_updates = order.get_balance_updates(bar_event.bar, liquidity_strategy)
         assert (
             order.state == prev_state
@@ -864,14 +874,11 @@ class FuturesExchange(Exchange):
             order_not_filled()
             return
 
-        # Sanity checks. Base and quote amounts should be there.
+        # Sanity checks. Base amount should be there, quote amount should be 0 or not present.
         base_sign = bt_helpers.get_base_sign_for_operation(order.operation)
         assert_has_value(balance_updates, order.pair.base_symbol, base_sign)
-        assert_has_value(balance_updates, order.pair.quote_symbol, -base_sign)
+        assert_has_value(balance_updates, "price", Decimal(1))
 
-        # If base/quote amounts were removed after rounding then there is nothing left to do.
-        # TODO: this needs to round to nearest multiple of price increment. Override and fix.
-        balance_updates = self._round_balance_updates(order.pair, balance_updates)
         logger.debug(
             logs.StructuredMessage(
                 "Processing order", order_id=order.id, balance_updates=balance_updates
@@ -879,14 +886,16 @@ class FuturesExchange(Exchange):
         )
         if (
             order.pair.base_symbol not in balance_updates
-            or order.pair.quote_symbol not in balance_updates
+            or "price" not in balance_updates
         ):
             order_not_filled()
             return
 
+        price = balance_updates["price"]
+        del balance_updates["price"]
+
         # Get fees, round them, and combine them with the balance updates.
         fees = self._fee_strategy.calculate_fees(order, balance_updates)
-        fees = self._round_fees(order.pair, fees)
         logger.debug(
             logs.StructuredMessage("Processing order", order_id=order.id, fees=fees)
         )
@@ -895,22 +904,22 @@ class FuturesExchange(Exchange):
 
         # Check if we're short on any balance.
         balances_short = False
-        # for symbol, balance_update in final_updates.items():
-        #     available_balance = self._balances.get_available_balance(
-        #         symbol
-        #     ) + self._balances.get_balance_on_hold_for_order(order.id, symbol)
-        #     final_balance = available_balance + balance_update
-        #     if final_balance < Decimal(0):
-        #         balances_short = True
-        #         logger.debug(
-        #             logs.StructuredMessage(
-        #                 "Balance short processing order",
-        #                 order_id=order.id,
-        #                 symbol=symbol,
-        #                 short=final_balance,
-        #             )
-        #         )
-        #         break
+        for symbol, balance_update in final_updates.items():
+            available_balance = self._balances.get_available_balance(
+                symbol
+            ) + self._balances.get_balance_on_hold_for_order(order.id, symbol)
+            final_balance = available_balance + balance_update
+            if final_balance < Decimal(0):
+                balances_short = True
+                logger.debug(
+                    logs.StructuredMessage(
+                        "Balance short processing order",
+                        order_id=order.id,
+                        symbol=symbol,
+                        short=final_balance,
+                    )
+                )
+                break
 
         # Update, or fail.
         if not balances_short:

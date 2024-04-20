@@ -31,25 +31,35 @@ logger = logging.getLogger(__name__)
 
 
 class WebSocketClient(core_ws.WebSocketClient):
-    def __init__(self, session: Optional[aiohttp.ClientSession] = None, config_overrides: dict = {}):
+    def __init__(
+        self,
+        session: Optional[aiohttp.ClientSession] = None,
+        config_overrides: dict = {},
+    ):
         url = urljoin(
-            get_config_value(config.DEFAULTS, "api.websockets.base_url", overrides=config_overrides),
-            "/stream"
+            get_config_value(
+                config.DEFAULTS, "api.websockets.base_url", overrides=config_overrides
+            ),
+            "/stream",
         )
         super().__init__(
-            url, session=session, config_overrides=config_overrides,
-            heartbeat=get_config_value(config.DEFAULTS, "api.websockets.heartbeat", overrides=config_overrides)
+            url,
+            session=session,
+            config_overrides=config_overrides,
+            heartbeat=get_config_value(
+                config.DEFAULTS, "api.websockets.heartbeat", overrides=config_overrides
+            ),
         )
         self._next_msg_id = int(time.time() * 1000)
 
-    async def subscribe_to_channels(self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse):
+    async def subscribe_to_channels(
+        self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse
+    ):
         logger.debug(logs.StructuredMessage("Subscribing", src=self, channels=channels))
         msg_id = self._get_next_msg_id()
-        await ws_cli.send_str(json.dumps({
-            "id": msg_id,
-            "method": "SUBSCRIBE",
-            "params": channels
-        }))
+        await ws_cli.send_str(
+            json.dumps({"id": msg_id, "method": "SUBSCRIBE", "params": channels})
+        )
 
     async def handle_message(self, message: dict) -> bool:
         coro = None
@@ -58,7 +68,9 @@ class WebSocketClient(core_ws.WebSocketClient):
         if {"result", "id"} <= set(message.keys()):
             coro = self._on_response(message)
         # A message associated to a channel.
-        elif (channel := message.get("stream")) and (event_source := self.get_channel_event_source(channel)):
+        elif (channel := message.get("stream")) and (
+            event_source := self.get_channel_event_source(channel)
+        ):
             coro = event_source.push_from_message(message)
 
         ret = False

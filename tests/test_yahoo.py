@@ -88,11 +88,15 @@ def test_multiple_sources(backtesting_dispatcher):
         events.append(event)
 
     src_1 = bars.CSVBarSource(
-        pair.Pair("ORCL", "USD"), helpers.abs_data_path("orcl-2000-yahoo-sorted.csv"), sort=False,
-        tzinfo=datetime.timezone.utc
+        pair.Pair("ORCL", "USD"),
+        helpers.abs_data_path("orcl-2000-yahoo-sorted.csv"),
+        sort=False,
+        tzinfo=datetime.timezone.utc,
     )
     src_2 = bars.CSVBarSource(
-        pair.Pair("ORCL", "USD"), helpers.abs_data_path("orcl-2001-yahoo.csv"), adjust_ohlc=True
+        pair.Pair("ORCL", "USD"),
+        helpers.abs_data_path("orcl-2001-yahoo.csv"),
+        adjust_ohlc=True,
     )
 
     backtesting_dispatcher.subscribe(src_1, add_bar)
@@ -100,7 +104,9 @@ def test_multiple_sources(backtesting_dispatcher):
 
     asyncio.run(backtesting_dispatcher.run())
 
-    assert events[0].bar.datetime == datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
+    assert events[0].bar.datetime == datetime.datetime(
+        2000, 1, 3, tzinfo=datetime.timezone.utc
+    )
     assert events[0].bar.pair.base_symbol == "ORCL"
     assert events[0].bar.pair.quote_symbol == "USD"
     assert events[0].bar.open == Decimal("124.62")
@@ -109,8 +115,12 @@ def test_multiple_sources(backtesting_dispatcher):
     assert events[0].bar.close == Decimal("118.12")
     assert events[0].bar.volume == Decimal("98122000")
 
-    assert events[-1].bar.datetime == datetime.datetime(2001, 12, 31, tzinfo=tz.tzlocal())
-    assert events[-1].when == datetime.datetime(2001, 12, 31, 23, 59, 59, microsecond=999999, tzinfo=tz.tzlocal())
+    assert events[-1].bar.datetime == datetime.datetime(
+        2001, 12, 31, tzinfo=tz.tzlocal()
+    )
+    assert events[-1].when == datetime.datetime(
+        2001, 12, 31, 23, 59, 59, microsecond=999999, tzinfo=tz.tzlocal()
+    )
 
     assert round_decimal(events[-1].bar.open, 2) == Decimal("13.78")
     assert round_decimal(events[-1].bar.high, 2) == Decimal("13.91")

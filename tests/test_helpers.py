@@ -44,13 +44,16 @@ async def cancel_task_group(task_group, wait=0):
     task_group.cancel()
 
 
-@pytest.mark.parametrize("amount, precision, expected", [
-    ("1", 0, "1"),
-    ("1.1", 0, "1"),
-    ("-1.1", 0, "-1"),
-    ("-1.1999", 1, "-1.1"),
-    ("0.2999", 2, "0.29"),
-])
+@pytest.mark.parametrize(
+    "amount, precision, expected",
+    [
+        ("1", 0, "1"),
+        ("1.1", 0, "1"),
+        ("-1.1", 0, "-1"),
+        ("-1.1999", 1, "-1.1"),
+        ("0.2999", 2, "0.29"),
+    ],
+)
 def test_truncate(amount, precision, expected):
     assert helpers.truncate_decimal(Decimal(amount), precision) == Decimal(expected)
 

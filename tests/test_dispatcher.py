@@ -78,9 +78,12 @@ class FailingProducer(event.Producer):
 def test_producers_and_events(realtime_dispatcher):
     shared_producer = Producer()
     event_sources = [
-        event.FifoQueueEventSource(), event.FifoQueueEventSource(),
-        event.FifoQueueEventSource(producer=Producer()), event.FifoQueueEventSource(producer=Producer()),
-        event.FifoQueueEventSource(producer=shared_producer), event.FifoQueueEventSource(producer=shared_producer),
+        event.FifoQueueEventSource(),
+        event.FifoQueueEventSource(),
+        event.FifoQueueEventSource(producer=Producer()),
+        event.FifoQueueEventSource(producer=Producer()),
+        event.FifoQueueEventSource(producer=shared_producer),
+        event.FifoQueueEventSource(producer=shared_producer),
     ]
     events = []
 
@@ -110,20 +113,30 @@ def test_producers_and_events(realtime_dispatcher):
     asyncio.run(asyncio.wait_for(test_main(), 2))
 
 
-@pytest.mark.parametrize("failing_producer, other_initialized, other_ran, other_stopped, other_finalized", [
-    (FailingProducer(True, False, False), True, False, False, True),
-    (FailingProducer(False, True, False), True, True, True, True),
-    (FailingProducer(False, True, True), True, True, True, True),
-])
+@pytest.mark.parametrize(
+    "failing_producer, other_initialized, other_ran, other_stopped, other_finalized",
+    [
+        (FailingProducer(True, False, False), True, False, False, True),
+        (FailingProducer(False, True, False), True, True, True, True),
+        (FailingProducer(False, True, True), True, True, True, True),
+    ],
+)
 def test_exceptions_in_producers(
-    failing_producer, other_initialized, other_ran, other_stopped, other_finalized, realtime_dispatcher
+    failing_producer,
+    other_initialized,
+    other_ran,
+    other_stopped,
+    other_finalized,
+    realtime_dispatcher,
 ):
     shared_producer = Producer()
     event_sources = [
         event.FifoQueueEventSource(producer=failing_producer),
         event.FifoQueueEventSource(),
-        event.FifoQueueEventSource(producer=Producer()), event.FifoQueueEventSource(producer=Producer()),
-        event.FifoQueueEventSource(producer=shared_producer), event.FifoQueueEventSource(producer=shared_producer),
+        event.FifoQueueEventSource(producer=Producer()),
+        event.FifoQueueEventSource(producer=Producer()),
+        event.FifoQueueEventSource(producer=shared_producer),
+        event.FifoQueueEventSource(producer=shared_producer),
     ]
     events = []
 
@@ -162,11 +175,13 @@ def test_out_of_order_events_are_skipped(realtime_dispatcher):
         events.append(event)
 
     async def test_main():
-        src = event.FifoQueueEventSource(events=[
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now() - datetime.timedelta(hours=1)),
-            event.Event(dt.utc_now() + datetime.timedelta(milliseconds=250)),
-        ])
+        src = event.FifoQueueEventSource(
+            events=[
+                event.Event(dt.utc_now()),
+                event.Event(dt.utc_now() - datetime.timedelta(hours=1)),
+                event.Event(dt.utc_now() + datetime.timedelta(milliseconds=250)),
+            ]
+        )
         realtime_dispatcher.subscribe(src, save_events)
 
         await asyncio.gather(realtime_dispatcher.run(), stop_dispatcher())
@@ -202,8 +217,10 @@ def test_subscription_order_per_source(backtesting_dispatcher):
 
         handler_count = 100
         for i in range(handler_count):
+
             async def handler(e, i=i):
                 priorities.append(i)
+
             backtesting_dispatcher.subscribe(src, handler)
 
         await backtesting_dispatcher.run()
@@ -240,25 +257,29 @@ def test_sniffers(backtesting_dispatcher):
     asyncio.run(test_main())
 
 
-@pytest.mark.parametrize("schedule_dates", [
+@pytest.mark.parametrize(
+    "schedule_dates",
     [
-        datetime.datetime(2000, 1, 1, 0, 0, 1),
+        [
+            datetime.datetime(2000, 1, 1, 0, 0, 1),
+        ],
+        [
+            datetime.datetime(1999, 1, 1, 0, 0, 0),
+            datetime.datetime(2000, 1, 2, 0, 0, 0),
+            datetime.datetime(2001, 1, 2, 0, 0, 0),
+            datetime.datetime(2002, 1, 1, 0, 0, 0),
+            dt.local_now(),
+            dt.utc_now(),
+        ],
     ],
-    [
-        datetime.datetime(1999, 1, 1, 0, 0, 0),
-        datetime.datetime(2000, 1, 2, 0, 0, 0),
-        datetime.datetime(2001, 1, 2, 0, 0, 0),
-        datetime.datetime(2002, 1, 1, 0, 0, 0),
-        dt.local_now(),
-        dt.utc_now(),
-    ],
-])
+)
 def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
     datetimes = []
 
     def scheduled_job_factory(when):
         async def scheduled_job():
             datetimes.append(when)
+
         return scheduled_job
 
     async def proces_event(event):
@@ -281,7 +302,9 @@ def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
         for schedule_date in schedule_dates:
             if dt.is_naive(schedule_date):
                 schedule_date = schedule_date.replace(tzinfo=datetime.timezone.utc)
-            backtesting_dispatcher.schedule(schedule_date, scheduled_job_factory(schedule_date))
+            backtesting_dispatcher.schedule(
+                schedule_date, scheduled_job_factory(schedule_date)
+            )
             backtesting_dispatcher.schedule(schedule_date, failing_scheduled_job)
 
         await backtesting_dispatcher.run()
@@ -292,18 +315,22 @@ def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
     asyncio.run(test_main())
 
 
-@pytest.mark.parametrize("delta_seconds", [
-    0.5,
-    1,
-    -0.5,
-])
+@pytest.mark.parametrize(
+    "delta_seconds",
+    [
+        0.5,
+        1,
+        -0.5,
+    ],
+)
 def test_realtime_scheduler(delta_seconds, realtime_dispatcher):
     async def scheduled_job():
         realtime_dispatcher.stop()
 
     async def test_main():
         realtime_dispatcher.schedule(
-            realtime_dispatcher.now() + datetime.timedelta(seconds=delta_seconds), scheduled_job
+            realtime_dispatcher.now() + datetime.timedelta(seconds=delta_seconds),
+            scheduled_job,
         )
         await realtime_dispatcher.run()
 
@@ -320,10 +347,16 @@ def test_stop_dispatcher_when_idle(realtime_dispatcher):
     async def on_idle():
         realtime_dispatcher.stop()
 
-    src = event.FifoQueueEventSource(events=[
-        event.Event(datetime.datetime(2000, 1, 1).replace(tzinfo=datetime.timezone.utc)),
-        event.Event(datetime.datetime(2000, 1, 2).replace(tzinfo=datetime.timezone.utc)),
-    ])
+    src = event.FifoQueueEventSource(
+        events=[
+            event.Event(
+                datetime.datetime(2000, 1, 1).replace(tzinfo=datetime.timezone.utc)
+            ),
+            event.Event(
+                datetime.datetime(2000, 1, 2).replace(tzinfo=datetime.timezone.utc)
+            ),
+        ]
+    )
     realtime_dispatcher.subscribe(src, on_event)
     realtime_dispatcher.subscribe_idle(on_idle)
     asyncio.run(realtime_dispatcher.run())

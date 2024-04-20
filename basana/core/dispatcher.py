@@ -14,7 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import cast, Any, Awaitable, Callable, Dict, Generator, List, Optional, Set, Tuple
+from typing import (
+    cast,
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+)
 import abc
 import asyncio
 import dataclasses
@@ -42,7 +53,9 @@ class EventDispatch:
 @dataclasses.dataclass(order=True)
 class ScheduledJob:
     when: datetime.datetime
-    job: SchedulerJob = dataclasses.field(compare=False)  # Comparing function objects fails on Win32
+    job: SchedulerJob = dataclasses.field(
+        compare=False
+    )  # Comparing function objects fails on Win32
 
 
 class SchedulerQueue:
@@ -81,7 +94,9 @@ class EventMultiplexer:
             next_dt = min(map(lambda evnt: evnt.when, prefetched_events))
         return next_dt
 
-    def pop(self, max_dt: datetime.datetime) -> Tuple[Optional[event.EventSource], Optional[event.Event]]:
+    def pop(
+        self, max_dt: datetime.datetime
+    ) -> Tuple[Optional[event.EventSource], Optional[event.Event]]:
         ret_source: Optional[event.EventSource] = None
         ret_event: Optional[event.Event] = None
 
@@ -92,7 +107,11 @@ class EventMultiplexer:
                 evnt = source.pop()
                 self._prefetched_events[source] = evnt
             # If the event matches the filter, check if the next one to return.
-            if evnt and evnt.when <= max_dt and (ret_event is None or evnt.when < ret_event.when):
+            if (
+                evnt
+                and evnt.when <= max_dt
+                and (ret_event is None or evnt.when < ret_event.when)
+            ):
                 ret_source = source
                 ret_event = evnt
 
@@ -102,9 +121,14 @@ class EventMultiplexer:
 
         return (ret_source, ret_event)
 
-    def pop_while(self, max_dt: datetime.datetime) -> Generator[Tuple[event.EventSource, event.Event], None, None]:
+    def pop_while(
+        self, max_dt: datetime.datetime
+    ) -> Generator[Tuple[event.EventSource, event.Event], None, None]:
         while None not in (src_and_event := self.pop(max_dt)):
-            yield (cast(event.EventSource, src_and_event[0]), cast(event.Event, src_and_event[1]))
+            yield (
+                cast(event.EventSource, src_and_event[0]),
+                cast(event.Event, src_and_event[1]),
+            )
 
     def _prefetch(self):
         sources_to_pop = [
@@ -170,7 +194,9 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         :param event_handler: An async callable that receives an event.
         """
 
-        assert not self._running, "Subscribing once we're running is not currently supported."
+        assert (
+            not self._running
+        ), "Subscribing once we're running is not currently supported."
 
         self._event_mux.add(source)
         handlers = self._event_handlers.setdefault(source, [])
@@ -186,7 +212,9 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         :param front_run: True to front run all other handlers, False otherwise.
         """
 
-        assert not self._running, "Subscribing once we're running is not currently supported."
+        assert (
+            not self._running
+        ), "Subscribing once we're running is not currently supported."
 
         sniffers = self._sniffers_pre if front_run else self._sniffers_post
         if event_handler not in sniffers:
@@ -242,7 +270,9 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             # No more cancelation at this point.
             self._active_tasks = None
             # Finalize producers.
-            await gather_no_raise(*[producer.finalize() for producer in self._producers])
+            await gather_no_raise(
+                *[producer.finalize() for producer in self._producers]
+            )
 
     def on_error(self, error: Any):
         logger.error(error)
@@ -252,25 +282,40 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     async def _dispatch_event(self, event_dispatch: EventDispatch):
-        logger.debug(logs.StructuredMessage(
-            "Dispatching event", when=event_dispatch.event.when, type=type(event_dispatch.event)
-        ))
+        logger.debug(
+            logs.StructuredMessage(
+                "Dispatching event",
+                when=event_dispatch.event.when,
+                type=type(event_dispatch.event),
+            )
+        )
         if self._sniffers_pre:
             await gather_no_raise(
-                *[event_handler(event_dispatch.event) for event_handler in self._sniffers_pre]
+                *[
+                    event_handler(event_dispatch.event)
+                    for event_handler in self._sniffers_pre
+                ]
             )
         if event_dispatch.handlers:
             await gather_no_raise(
-                *[event_handler(event_dispatch.event) for event_handler in event_dispatch.handlers]
+                *[
+                    event_handler(event_dispatch.event)
+                    for event_handler in event_dispatch.handlers
+                ]
             )
         if self._sniffers_post:
             await gather_no_raise(
-                *[event_handler(event_dispatch.event) for event_handler in self._sniffers_post]
+                *[
+                    event_handler(event_dispatch.event)
+                    for event_handler in self._sniffers_post
+                ]
             )
 
     async def _execute_scheduled(self, dt: datetime.datetime, job: SchedulerJob):
         logger.debug(logs.StructuredMessage("Executing scheduled job", scheduled=dt))
-        await await_no_raise(job(), message="Unhandled exception executing scheduled job")
+        await await_no_raise(
+            job(), message="Unhandled exception executing scheduled job"
+        )
 
 
 class BacktestingDispatcher(EventDispatcher):
@@ -298,13 +343,16 @@ class BacktestingDispatcher(EventDispatcher):
             next_dt = self._event_mux.peek_next_event_dt()
             if next_dt:
                 # Check that events are processed in ascending order.
-                assert self._last_dt is None or next_dt >= self._last_dt, \
-                    f"{next_dt} can't be dispatched after {self._last_dt}"
+                assert (
+                    self._last_dt is None or next_dt >= self._last_dt
+                ), f"{next_dt} can't be dispatched after {self._last_dt}"
 
                 await self._dispatch_scheduled(next_dt)
                 await self._dispatch_events(next_dt)
             else:
-                await self._dispatch_scheduled(dt.utc_now())  # Dispatch all past events.
+                await self._dispatch_scheduled(
+                    dt.utc_now()
+                )  # Dispatch all past events.
                 self.stop()
 
     async def _dispatch_scheduled(self, dt: datetime.datetime):
@@ -327,7 +375,11 @@ class BacktestingDispatcher(EventDispatcher):
         self._last_dt = dt
         for source, evnt in self._event_mux.pop_while(dt):
             await self._task_pool.push(
-                self._dispatch_event(EventDispatch(event=evnt, handlers=self._event_handlers.get(source, [])))
+                self._dispatch_event(
+                    EventDispatch(
+                        event=evnt, handlers=self._event_handlers.get(source, [])
+                    )
+                )
             )
         await self._task_pool.wait_all()
 
@@ -354,7 +406,9 @@ class RealtimeDispatcher(EventDispatcher):
         :param idle_handler: An async callable that receives no arguments.
         """
 
-        assert not self._running, "Subscribing once we're running is not currently supported."
+        assert (
+            not self._running
+        ), "Subscribing once we're running is not currently supported."
 
         if idle_handler not in self._idle_handlers:
             self._idle_handlers.append(idle_handler)
@@ -374,15 +428,20 @@ class RealtimeDispatcher(EventDispatcher):
 
     async def _on_idle(self):
         if self._idle_handlers:
-            await gather_no_raise(*[
-                self._task_pool.push(idle_handler()) for idle_handler in self._idle_handlers
-            ])
+            await gather_no_raise(
+                *[
+                    self._task_pool.push(idle_handler())
+                    for idle_handler in self._idle_handlers
+                ]
+            )
         else:
             # Otherwise we'll monopolize the event loop.
             await asyncio.sleep(self.idle_sleep)
 
     async def _push_scheduled(self, dt: datetime.datetime):
-        while (next_scheduled_dt := self._scheduler_queue.peek_next_event_dt()) and next_scheduled_dt <= dt:
+        while (
+            next_scheduled_dt := self._scheduler_queue.peek_next_event_dt()
+        ) and next_scheduled_dt <= dt:
             next_scheduled_dt, job = self._scheduler_queue.pop()
             # Push scheduled job into the task pool for processing.
             await self._task_pool.push(self._execute_scheduled(next_scheduled_dt, job))
@@ -393,19 +452,25 @@ class RealtimeDispatcher(EventDispatcher):
             # Check that events from the same source are returned in order.
             prev_event_dt = self._prev_event_dt.get(source)
             if prev_event_dt is not None and evnt.when < prev_event_dt:
-                self.on_error(logs.StructuredMessage(
-                    "Events returned out of order", source=type(source), previous=prev_event_dt, current=evnt.when
-                ))
+                self.on_error(
+                    logs.StructuredMessage(
+                        "Events returned out of order",
+                        source=type(source),
+                        previous=prev_event_dt,
+                        current=evnt.when,
+                    )
+                )
                 # TODO: Not ignoring out-of-order events should be an option.
                 continue
             self._prev_event_dt[source] = evnt.when
 
             # Push event into the task pool for processing.
             await self._task_pool.push(
-                self._dispatch_event(EventDispatch(
-                    event=evnt,
-                    handlers=self._event_handlers.get(source, [])
-                ))
+                self._dispatch_event(
+                    EventDispatch(
+                        event=evnt, handlers=self._event_handlers.get(source, [])
+                    )
+                )
             )
 
 
