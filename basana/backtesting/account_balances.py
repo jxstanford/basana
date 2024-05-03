@@ -159,7 +159,6 @@ class FuturesAccountBalances(AccountBalances):
         self._holds_by_symbol = add_amounts(self._holds_by_symbol, hold_updates)
 
         # Update margins for the order.
-        # TODO: can this be simplified to zero out the margins_by_order? Depends on if it handles partial orders I think
         symbol = self._get_margin_symbol(order)
         if order.is_open:
             if order.opening_quantity == 0:

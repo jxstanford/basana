@@ -108,7 +108,6 @@ def test_order_gets_completed():
     assert balances.get_balance_on_margin_for_order(order.id, "USD") == Decimal(40000)
 
 
-@patch.object(orders.MarketFuturesOrder, "_Private__attr", new_callable=PropertyMock)
 def test_order_gets_canceled():
     balances = account_balances.FuturesAccountBalances({"USD": Decimal(100_000)})
 

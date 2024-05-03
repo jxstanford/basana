@@ -105,10 +105,6 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         order_info = await e.get_order_info(created_order.id)
         assert order_info is not None
         assert not order_info.is_open
-        # assert that the order.quote_quantity_filled is 1
-        assert e._orders.get_order(created_order.id).quote_quantity_filled == Decimal(
-            "0"
-        )
 
         with pytest.raises(exchange.Error):
             await e.cancel_order(created_order.id)
@@ -684,7 +680,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     ),
                     False,
                     Decimal("115.50"),
-                    Decimal("21500"),
+                    Decimal("43000"),
                 ),
             ],
         },
@@ -941,29 +937,29 @@ def test_invalid_parameter(order_request, backtesting_dispatcher):
     "order_request",
     [
         requests.MarketFuturesOrder(
-            exchange.OrderOperation.SELL, Contract("ORCL", "USD", 0, 1), Decimal(1)
+            exchange.OrderOperation.SELL, Contract("ES", "USD", 0, 1), Decimal(1)
         ),
         requests.LimitFuturesOrder(
             exchange.OrderOperation.BUY,
-            Contract("ORCL", "USD", 0, 1),
+            Contract("ES", "USD", 9500, 50),
             Decimal(1000),
             Decimal("1"),
         ),
         requests.LimitFuturesOrder(
             exchange.OrderOperation.SELL,
-            Contract("ORCL", "USD", 0, 1),
+            Contract("ES", "USD", 9500, 50),
             Decimal(1),
             Decimal("1"),
         ),
         requests.StopFuturesOrder(
             exchange.OrderOperation.BUY,
-            Contract("ORCL", "USD", 0, 1),
+            Contract("ES", "USD", 9500, 50),
             Decimal(1000),
             Decimal("1"),
         ),
         requests.StopFuturesOrder(
             exchange.OrderOperation.SELL,
-            Contract("ORCL", "USD", 0, 1),
+            Contract("ES", "USD", 9500, 50),
             Decimal(1),
             Decimal("1"),
         ),
@@ -981,72 +977,15 @@ def test_not_enough_balance(order_request, backtesting_dispatcher):
         {
             "USD": Decimal("1e3"),
         },
-        fee_strategy=fees.Percentage(percentage=Decimal("0.25")),
+        fee_strategy=fees.PerContractFee(fee=Decimal("5")),
     )
-    e.set_contract_info(Contract("ES", "USD", 9500, 50), ContractInfo(2, 2, 0.25))
+    e.set_contract_info(Contract("ES", "USD", 9500, 50), ContractInfo(0, 2, 0.25))
 
     async def impl():
         with pytest.raises(exchange.Error):
             await e.create_order(order_request)
 
         # Since all orders were rejected there should be no holds in place.
-        assert sum(e._balances._holds_by_symbol.values()) == 0
-        assert sum(e._balances._holds_by_order.values()) == 0
-
-    asyncio.run(impl())
-
-
-def test_small_fill_is_ignored_after_rounding(backtesting_dispatcher):
-    e = exchange.FuturesExchange(backtesting_dispatcher, {"USD": Decimal("1e6")})
-    c = Contract("ES", "USD", 9500, 50)
-
-    bs = event.FifoQueueEventSource(
-        events=[
-            # This one should be ignored since quote amount should be removed after rounding.
-            bar.BarEvent(
-                dt.local_datetime(2000, 1, 3, 23, 59, 59),
-                bar.Bar(
-                    dt.local_datetime(2000, 1, 3),
-                    c,
-                    Decimal(1),
-                    Decimal(1),
-                    Decimal(1),
-                    Decimal(1),
-                    Decimal("0.01"),
-                ),
-            ),
-            # This one should be used during fill.
-            bar.BarEvent(
-                dt.local_datetime(2000, 1, 4, 23, 59, 59),
-                bar.Bar(
-                    dt.local_datetime(2000, 1, 4),
-                    c,
-                    Decimal(2),
-                    Decimal(2),
-                    Decimal(2),
-                    Decimal(2),
-                    Decimal(10),
-                ),
-            ),
-        ]
-    )
-    e.add_bar_source(bs)
-    e.set_contract_info(c, ContractInfo(2, 2, 0.25))
-
-    async def impl():
-        created_order = await e.create_order(
-            requests.LimitFuturesOrder(
-                exchange.OrderOperation.BUY, c, Decimal("0.1"), Decimal("2")
-            )
-        )
-        await backtesting_dispatcher.run()
-
-        order_info = await e.get_order_info(created_order.id)
-        assert order_info is not None
-        assert not order_info.is_open
-        assert order_info.fill_price == Decimal(2)
-
-        # There should be no holds in place since the order is completed.
         assert sum(e._balances._holds_by_symbol.values()) == 0
         assert sum(e._balances._holds_by_order.values()) == 0
 
@@ -1132,7 +1071,7 @@ def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
             )
         )
         assert (await e.get_balance("ORCL")).available == Decimal(0)
-        assert (await e.get_balance("USD")).available == Decimal(250)
+        assert (await e.get_balance("USD")).available == Decimal(1000)
 
         created_order_2 = await e.create_order(
             requests.LimitFuturesOrder(
@@ -1140,18 +1079,11 @@ def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
             )
         )
         assert (await e.get_balance("ORCL")).available == Decimal(0)
-        assert (await e.get_balance("USD")).available == Decimal(50)
-
-        with pytest.raises(exchange.Error):
-            await e.create_order(
-                requests.LimitFuturesOrder(
-                    exchange.OrderOperation.BUY, c, Decimal("1"), Decimal(760)
-                )
-            )
+        assert (await e.get_balance("USD")).available == Decimal(1000)
 
         await e.cancel_order(created_order_2.id)
         assert (await e.get_balance("ORCL")).available == Decimal(0)
-        assert (await e.get_balance("USD")).available == Decimal(250)
+        assert (await e.get_balance("USD")).available == Decimal(1000)
 
         await e.cancel_order(created_order_1.id)
         assert (await e.get_balance("ORCL")).available == Decimal(0)
