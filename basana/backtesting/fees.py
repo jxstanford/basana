@@ -91,15 +91,16 @@ class PerContractFee(FeeStrategy):
         self._fee = fee
 
     def calculate_fees(
-        self, order: orders.FuturesOrder, balance_updates: Dict[str, Decimal]
+        self, order: orders.Order, balance_updates: Dict[str, Decimal]
     ) -> Dict[str, Decimal]:
 
+        assert isinstance(order, orders.FuturesOrder)
         ret = {}
 
         base_symbol = order.contract.base_symbol
         quote_symbol = order.contract.quote_symbol
 
-        pending_fee = -abs(balance_updates.get(base_symbol)) * self._fee
+        pending_fee = -abs(balance_updates.get(base_symbol, Decimal(0))) * self._fee
         if pending_fee < Decimal(0):
             ret[quote_symbol] = pending_fee
 

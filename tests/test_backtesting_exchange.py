@@ -237,8 +237,8 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
     [
         {
             datetime.date(2000, 1, 3): [
-                # Stop order canceled due to insufficient funds. Need to tweak the amount and stop price to get the order
-                # accepted, but to fail as soon as it gets processed.
+                # Stop order canceled due to insufficient funds. Need to tweak the amount and stop price to get the
+                # order accepted, but to fail as soon as it gets processed.
                 (
                     lambda e: e.create_stop_order(
                         exchange.OrderOperation.BUY,
@@ -254,8 +254,8 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
         },
         {
             datetime.date(2000, 1, 7): [
-                # Market order canceled due to insufficient funds. Need to tweak the amount to get the order accepted, but
-                # to fail as soon as it gets processed.
+                # Market order canceled due to insufficient funds. Need to tweak the amount to get the order accepted,
+                # but to fail as soon as it gets processed.
                 (
                     lambda e: e.create_market_order(
                         exchange.OrderOperation.BUY,

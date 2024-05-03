@@ -113,7 +113,7 @@ class FuturesAccountBalances(AccountBalances):
         return self._margins_by_order.get(order_id, {}).get(symbol, Decimal(0))
 
     def order_margin_accepted(
-        self, order: orders.Order, margin_balance: Dict[str, Decimal]
+        self, order: orders.Order, required_margin_balance: Dict[str, Decimal]
     ):
         assert isinstance(order, orders.FuturesOrder)
         assert order.is_open, "The order is not open"
@@ -122,7 +122,7 @@ class FuturesAccountBalances(AccountBalances):
         # When an order gets accepted we need to hold any required balance that will be debited as the order gets
         # filled.
         symbol = self._get_margin_symbol(order)
-        margin_amount = margin_balance.get(symbol, Decimal(0))
+        margin_amount = required_margin_balance.get(symbol, Decimal(0))
 
         margins = {symbol: margin_amount}
         self._margins_by_symbol = add_amounts(self._margins_by_symbol, margins)
@@ -179,14 +179,15 @@ class FuturesAccountBalances(AccountBalances):
             )
         else:
             # Release everything that wasn't filled
-            amount_on_margin = self._margins_by_order[order.id][symbol]
-            new_amount_on_margin = order.opening_quantity_filled * Decimal(
-                order.contract.margin_requirement
+            quantity = min(order.opening_quantity, order.quantity_filled)
+            amount_on_margin = self._margins_by_order.get(order.id, {}).get(
+                symbol, Decimal(0)
             )
+            new_amount_on_margin = quantity * Decimal(order.contract.margin_requirement)
             margin_updates = {symbol: new_amount_on_margin - amount_on_margin}
 
             self._margins_by_order[order.id] = add_amounts(
-                self._margins_by_order[order.id], margin_updates
+                self._margins_by_order.get(order.id, {}), margin_updates
             )
             self._margins_by_symbol = add_amounts(
                 self._margins_by_symbol, margin_updates

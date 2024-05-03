@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 from decimal import Decimal
-from basana.backtesting import exchange, liquidity
+from basana.backtesting import exchange, liquidity, fees
 from basana.core import dt, bar
 from basana.core.enums import OrderOperation
 from basana.core.pair import Contract, ContractInfo
@@ -123,7 +123,6 @@ def test_get_trade_side_quantities():
             ),
             {
                 "ES": Decimal("1"),
-                "USD": Decimal("-4000.00"),
             },
         ),
         # Buy limit
@@ -138,7 +137,6 @@ def test_get_trade_side_quantities():
             ),
             {
                 "ES": Decimal("1"),
-                "USD": Decimal("-3999.50"),
             },
         ),
         # Buy limit uses open price which is better.
@@ -153,7 +151,6 @@ def test_get_trade_side_quantities():
             ),
             {
                 "ES": Decimal("2"),
-                "USD": Decimal("-8000.00"),
             },
         ),
         # Buy limit price not hit.
@@ -192,7 +189,6 @@ def test_get_trade_side_quantities():
             ),
             {
                 "ES": Decimal("1"),
-                "USD": Decimal("-4000.00"),
             },
         ),
         # Buy stop hit on open.
@@ -207,7 +203,6 @@ def test_get_trade_side_quantities():
             ),
             {
                 "ES": Decimal("1"),
-                "USD": Decimal("-4000.00"),
             },
         ),
         # Buy stop hit after open.
@@ -222,7 +217,6 @@ def test_get_trade_side_quantities():
             ),
             {
                 "ES": Decimal("1"),
-                "USD": Decimal("-4001.00"),
             },
         ),
         # Sell market
@@ -236,7 +230,6 @@ def test_get_trade_side_quantities():
             ),
             {
                 "ES": Decimal("-1"),
-                "USD": Decimal("4000"),
             },
         ),
         # Sell limit
@@ -251,7 +244,6 @@ def test_get_trade_side_quantities():
             ),
             {
                 "ES": Decimal("-1"),
-                "USD": Decimal("4002.00"),
             },
         ),
         # Sell limit uses open price which is better.
@@ -266,7 +258,6 @@ def test_get_trade_side_quantities():
             ),
             {
                 "ES": Decimal("-2"),
-                "USD": Decimal("8000.00"),
             },
         ),
         # Sell limit price not hit.
@@ -305,7 +296,6 @@ def test_get_trade_side_quantities():
             ),
             {
                 "ES": Decimal("-1"),
-                "USD": Decimal("4000"),
             },
         ),
         # Sell stop hit after open.
@@ -320,7 +310,6 @@ def test_get_trade_side_quantities():
             ),
             {
                 "ES": Decimal("-1"),
-                "USD": Decimal("3999.00"),
             },
         ),
     ],
@@ -328,9 +317,11 @@ def test_get_trade_side_quantities():
 def test_get_balance_updates_with_infinite_liquidity(
     order, expected_balance_updates, backtesting_dispatcher
 ):
-    e = exchange.Exchange(backtesting_dispatcher, {})  # Just for rounding purposes
+    e = exchange.FuturesExchange(
+        backtesting_dispatcher, {}, fee_strategy=fees.PerContractFee(Decimal("4.80"))
+    )  # Just for rounding purposes
     p = Contract("ES", "USD", 9500, 50)
-    e.set_pair_info(p, ContractInfo(2, 2, 0.25))
+    e.set_pair_info(p, ContractInfo(0, 2, 0.25))
 
     ls = liquidity.InfiniteLiquidity()
     b = bar.Bar(
@@ -342,8 +333,8 @@ def test_get_balance_updates_with_infinite_liquidity(
         Decimal("4001.25"),
         Decimal("1000"),
     )
-    balance_updates = order.get_balance_updates(b, ls)
-    # TODO: need to engage futures style rounding after adapting exchange to futures
+
+    balance_updates = order.get_balance_updates(b, ls, e._orders.get_all_orders())
     balance_updates = e._round_balance_updates(order.contract, balance_updates)
     assert balance_updates == expected_balance_updates
 
@@ -373,7 +364,6 @@ def test_get_balance_updates_with_infinite_liquidity(
             ),
             {
                 "ES": Decimal("2"),
-                "USD": Decimal("-8000.05"),
             },
         ),
         # Sell market. Rounding takes place. 250 should be available
@@ -387,7 +377,6 @@ def test_get_balance_updates_with_infinite_liquidity(
             ),
             {
                 "ES": Decimal("-2"),
-                "USD": Decimal("7999.95"),
             },
         ),
         # Sell stop but there is not enough balance.
@@ -409,7 +398,7 @@ def test_get_balance_updates_with_finite_liquidity(
 ):
     e = exchange.Exchange(backtesting_dispatcher, {})  # Just for rounding purposes
     p = Contract("ES", "USD", 9500, 50)
-    e.set_pair_info(p, ContractInfo(2, 2, 0.25))
+    e.set_pair_info(p, ContractInfo(0, 2, 0.25))
 
     ls = liquidity.VolumeShareImpact()
     b = bar.Bar(
@@ -424,6 +413,5 @@ def test_get_balance_updates_with_finite_liquidity(
     ls.on_bar(b)
 
     balance_updates = order.get_balance_updates(b, ls)
-    # TODO: need to engage futures style rounding after adapting exchange to futures
     balance_updates = e._round_balance_updates(order.pair, balance_updates)
     assert balance_updates == expected_balance_updates

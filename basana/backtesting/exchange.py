@@ -466,6 +466,7 @@ class Exchange:
         bar_event: bar.BarEvent,
         liquidity_strategy: liquidity.LiquidityStrategy,
     ):
+
         def order_not_filled():
             order.not_filled()
             # Update balances to release any pending hold if the order is no longer open.
@@ -710,8 +711,8 @@ class FuturesExchange(Exchange):
         # Create and accept the order.
         order = order_request.create_order(
             uuid.uuid4().hex,
-            trade_side_quantities["opening"],
-            trade_side_quantities["closing"],
+            trade_side_quantities["opening_quantity"],
+            trade_side_quantities["closing_quantity"],
         )
         assert isinstance(order, orders.FuturesOrder)
         self._orders.add_order(order)
@@ -805,7 +806,8 @@ class FuturesExchange(Exchange):
 
         # required margin will be the margin requirement * net opening quantity
         net_opening_quantity = (
-            trade_side_quantities["opening"] - trade_side_quantities["closing"]
+            trade_side_quantities["opening_quantity"]
+            - trade_side_quantities["closing_quantity"]
         )
         estimated_margin_updates = {}
         if net_opening_quantity > 0:
@@ -814,15 +816,15 @@ class FuturesExchange(Exchange):
                 * Decimal(order_request.contract.margin_requirement)
             }
 
-        return {symbol: -amount for symbol, amount in estimated_margin_updates.items()}
+        return {symbol: amount for symbol, amount in estimated_margin_updates.items()}
 
     async def _estimate_required_balances(
-        self, order_request: requests.FuturesExchangeOrder
+        self, order_request: requests.ExchangeOrder
     ) -> Dict[str, Decimal]:
         """
         For futures, this is limited to fees. Margin requirements are treated separately from account balances.
         """
-
+        assert isinstance(order_request, requests.FuturesExchangeOrder)
         base_sign = bt_helpers.get_base_sign_for_operation(order_request.operation)
         estimated_balance_updates = {
             order_request.contract.base_symbol: order_request.quantity * base_sign
@@ -861,10 +863,13 @@ class FuturesExchange(Exchange):
                     )
                 )
 
+        assert isinstance(order, orders.FuturesOrder)
         prev_state = order.state
         # Unlike the parent order class, get_balance_updates for FuturesOrders return a base symbol quantity and an
         # order price
-        balance_updates = order.get_balance_updates(bar_event.bar, liquidity_strategy)
+        balance_updates = order.get_balance_updates(
+            bar_event.bar, liquidity_strategy, self._orders.get_all_orders()
+        )
         assert (
             order.state == prev_state
         ), "The order state should not change inside get_balance_updates"
@@ -877,22 +882,18 @@ class FuturesExchange(Exchange):
         # Sanity checks. Base amount should be there, quote amount should be 0 or not present.
         base_sign = bt_helpers.get_base_sign_for_operation(order.operation)
         assert_has_value(balance_updates, order.pair.base_symbol, base_sign)
-        assert_has_value(balance_updates, "price", Decimal(1))
 
         logger.debug(
             logs.StructuredMessage(
-                "Processing order", order_id=order.id, balance_updates=balance_updates
+                "Processing order",
+                order_id=order.id,
+                balance_updates=balance_updates,
+                price=order._working_fill_price,
             )
         )
-        if (
-            order.pair.base_symbol not in balance_updates
-            or "price" not in balance_updates
-        ):
+        if order.pair.base_symbol not in balance_updates:
             order_not_filled()
             return
-
-        price = balance_updates["price"]
-        del balance_updates["price"]
 
         # Get fees, round them, and combine them with the balance updates.
         fees = self._fee_strategy.calculate_fees(order, balance_updates)
@@ -909,6 +910,7 @@ class FuturesExchange(Exchange):
                 symbol
             ) + self._balances.get_balance_on_hold_for_order(order.id, symbol)
             final_balance = available_balance + balance_update
+            # TODO: this will check the base symbol, which could be negative. Should only check the quote symbol?
             if final_balance < Decimal(0):
                 balances_short = True
                 logger.debug(
