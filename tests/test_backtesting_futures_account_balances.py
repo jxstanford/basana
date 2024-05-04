@@ -15,10 +15,10 @@
 # limitations under the License.
 
 from decimal import Decimal
+from unittest.mock import patch, PropertyMock
 
 from basana.backtesting import account_balances, orders
 from basana.core import dt, pair
-from unittest.mock import patch, PropertyMock
 
 
 def test_symbols():
@@ -152,15 +152,23 @@ def test_order_gets_canceled():
     assert balances.get_balance_on_margin_for_order(order.id, "USD") == Decimal(19000)
 
     order.cancel()
-    balances.order_updated(order, {})
+    with patch(
+        "basana.backtesting.orders.MarketFuturesOrder.quantity_filled",
+        new_callable=PropertyMock,
+    ) as mock_quantity_filled:
+        mock_quantity_filled.return_value = Decimal("1")
+        # Inside this block, order.quantity_filled will return Decimal('1')
+        balances.order_updated(order, {})
 
-    assert balances.get_available_balance("USD") == Decimal(99_997.50)
-    assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_balance_on_margin("USD") == Decimal(0)
-    assert balances.get_available_balance("ES") == Decimal(1)
-    assert balances.get_balance_on_hold("ES") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(0)
-    assert balances.get_balance_on_margin_for_order(order.id, "USD") == Decimal(9500)
+        assert balances.get_available_balance("USD") == Decimal(99_997.50)
+        assert balances.get_balance_on_hold("USD") == Decimal(0)
+        assert balances.get_balance_on_margin("USD") == Decimal(9500)
+        assert balances.get_available_balance("ES") == Decimal(1)
+        assert balances.get_balance_on_hold("ES") == Decimal(0)
+        assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(0)
+        assert balances.get_balance_on_margin_for_order(order.id, "USD") == Decimal(
+            9500
+        )
 
 
 def test_order_no_opening_quantity_completed():

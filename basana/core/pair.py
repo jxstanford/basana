@@ -65,7 +65,6 @@ class Contract(Pair):
     """
 
     #: The intraday margin requirement to initiate a trade.
-    #: TODO: This is a simplification. Model intraday, overnight, initial, maintenance
     margin_requirement: float
 
     #: The multiplier of the contract.

@@ -112,6 +112,7 @@ class FuturesAccountBalances(AccountBalances):
     def get_balance_on_margin_for_order(self, order_id: str, symbol: str) -> Decimal:
         return self._margins_by_order.get(order_id, {}).get(symbol, Decimal(0))
 
+    # TODO: refactor margin handling into order_accepted method
     def order_margin_accepted(
         self, order: orders.Order, required_margin_balance: Dict[str, Decimal]
     ):
@@ -127,6 +128,19 @@ class FuturesAccountBalances(AccountBalances):
         margins = {symbol: margin_amount}
         self._margins_by_symbol = add_amounts(self._margins_by_symbol, margins)
         self._margins_by_order[order.id] = margins
+
+    def order_accepted(self, order: orders.Order, required_balance: Dict[str, Decimal]):
+        assert order.is_open, "The order is not open"
+        assert order.id not in self._holds_by_order, "The order was already accepted"
+
+        # When an order gets accepted we need to hold any required balance that will be debited as the order gets
+        # filled.
+        symbol = self._get_hold_symbol(order)
+        hold_amount = required_balance.get(symbol, Decimal(0))
+        assert hold_amount >= Decimal(0), f"Invalid hold amount {hold_amount}"
+        holds = {symbol: hold_amount}
+        self._holds_by_symbol = add_amounts(self._holds_by_symbol, holds)
+        self._holds_by_order[order.id] = holds
 
     def order_updated(self, order: orders.Order, balance_updates: Dict[str, Decimal]):
         assert isinstance(order, orders.FuturesOrder)

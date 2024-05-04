@@ -78,34 +78,3 @@ def get_trade_side_quantities(
                 "opening_quantity": quantity - abs(current_position),
                 "closing_quantity": abs(current_position),
             }
-
-
-# def match_closing_orders(current_position: closing_quantity):
-#     # TODO: implement matching strategy (e.g., FIFO, LIFO, etc.)
-#     # Sort the orders by oldest first
-#     position_orders.sort(key=lambda x: x.dt, reverse=True)
-#
-#     # Initialize the remaining quantity to close
-#     remaining_quantity = closing_quantity
-#
-#     # Initialize the list of matched orders
-#     matched_orders = []
-#
-#     # Iterate over the orders
-#     for order in position_orders:
-#         # If the order quantity is less than the remaining quantity
-#         if order.quantity <= remaining_quantity:
-#             # Add the order to the matched orders
-#             matched_orders.append(order)
-#             # Subtract the order quantity from the remaining quantity
-#             remaining_quantity -= order.quantity
-#         # If the order quantity is greater than the remaining quantity
-#         else:
-#             # Add a new order with the remaining quantity to the matched orders
-#             matched_orders.append(order._replace(quantity=remaining_quantity))
-#             # Subtract the remaining quantity from the order quantity
-#             order.quantity -= remaining_quantity
-#             # Break the loop
-#             break
-#
-#     return matched_orders

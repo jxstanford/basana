@@ -507,12 +507,10 @@ class StopLimitOrder(Order):
 @dataclasses.dataclass
 class FuturesFill(Fill):
     #: The price at which the fill took place.
-    price: Decimal
+    price: Optional[Decimal]
 
 
 class FuturesOrderInfo(OrderInfo):
-    #  The average fill price of the order
-    fill_price: Optional[Decimal]
 
     def __init__(
         self,
@@ -557,7 +555,7 @@ class FuturesOrder(Order, ABC):
         self._quantity = quantity
         self._opening_quantity = opening_quantity
         self._closing_quantity = closing_quantity
-        self._working_fill_price = None
+        self._working_fill_price = Decimal(0)
         super().__init__(id, operation, contract, quantity, state)
 
     @property
@@ -578,13 +576,14 @@ class FuturesOrder(Order, ABC):
         return self._amount - self.quantity_filled
 
     @property
-    def quote_quantity_filled(self) -> Decimal:
+    def quote_quantity_filled(self) -> Optional[Decimal]:
         fill_price = None
 
         if self.quantity_filled:
             fill_price = Decimal(0)
             for fill in self.fills:
                 assert isinstance(fill, FuturesFill)
+                assert fill.price is not None
                 fill_price += fill.price * abs(
                     int(fill.balance_updates.get(self.pair.base_symbol, Decimal(0)))
                 )
@@ -621,6 +620,15 @@ class FuturesOrder(Order, ABC):
     def opening_quantity_pending(self) -> Decimal:
         return self._opening_quantity - self.opening_quantity_filled
 
+    @abc.abstractmethod
+    def get_balance_updates(
+        self,
+        bar: bar.Bar,
+        liquidity_strategy: liquidity.LiquidityStrategy,
+        orders: Sequence[Order] = [],
+    ) -> Dict[str, Decimal]:
+        raise NotImplementedError()
+
     def add_fill(
         self,
         when: datetime.datetime,
@@ -647,21 +655,16 @@ class FuturesOrder(Order, ABC):
             fill_price = None
         else:
             symbol = self.contract.base_symbol
-            quantity_at_price = [
-                (f.balance_updates.get(symbol, Decimal(0)), f.price)
-                for f in self.fills
-                if isinstance(f, FuturesFill)
-            ]
-            total_price = abs(
-                sum(
-                    [
-                        q * p
-                        for q, p in quantity_at_price
-                        if q is not None and p is not None
-                    ]
-                )
-            )
-            fill_price = abs(total_price / sum([q for q, _ in quantity_at_price]))
+            quantity_at_price_tuples = []
+            for f in self.fills:
+                if isinstance(f, FuturesFill):
+                    quantity = f.balance_updates.get(symbol, Decimal(0))
+                    price = f.price if f.price is not None else Decimal(0)
+                    quantity_at_price_tuples.append((quantity, price))
+
+            total_price = sum(q * p for q, p in quantity_at_price_tuples)
+            total_quantity = sum(q for q, _ in quantity_at_price_tuples)
+            fill_price = Decimal(total_price / total_quantity)
 
         return FuturesOrderInfo(
             id=self.id,
@@ -723,7 +726,13 @@ class FuturesOrder(Order, ABC):
 
             # now should be safe to take the first `closing_quantity` fills to compute the pnl
             matched_fill_prices = unmatched_sell_prices[: int(self.closing_quantity)]
-            pnl = sum([price - fill_price for fill_price in matched_fill_prices])
+            pnl = sum(
+                [
+                    price - fill_price
+                    for fill_price in matched_fill_prices
+                    if fill_price is not None
+                ]
+            )
         else:
             assert (
                 len(filled_buy_prices) - len(filled_sell_prices)
@@ -732,8 +741,14 @@ class FuturesOrder(Order, ABC):
 
             # now should be safe to take the first `closing_quantity` fills to compute the pnl
             matched_fill_prices = unmatched_buy_prices[: int(self.closing_quantity)]
-            pnl = sum([price - fill_price for fill_price in matched_fill_prices])
-            pnl = pnl * self.contract.multiplier
+            pnl = sum(
+                [
+                    price - fill_price
+                    for fill_price in matched_fill_prices
+                    if fill_price is not None
+                ]
+            )
+            pnl = pnl * Decimal(self.contract.multiplier)
         return pnl
 
 
@@ -760,7 +775,7 @@ class MarketFuturesOrder(FuturesOrder):
         self,
         bar: bar.Bar,
         liquidity_strategy: liquidity.LiquidityStrategy,
-        orders: Sequence[FuturesOrder] = [],
+        orders: Sequence[Order] = [],
     ) -> Dict[str, Decimal]:
         # No partial fills for market orders.
         if self.amount_pending > liquidity_strategy.available_liquidity:
@@ -822,9 +837,9 @@ class LimitFuturesOrder(FuturesOrder):
         self,
         bar: bar.Bar,
         liquidity_strategy: liquidity.LiquidityStrategy,
-        orders: Sequence[FuturesOrder] = [],
+        orders: Sequence[Order] = [],
     ) -> Dict[str, Decimal]:
-        price = None
+        price = Decimal(0)
         quantity = min(self.quantity_pending, liquidity_strategy.available_liquidity)
         base_sign = helpers.get_base_sign_for_operation(self.operation)
 
@@ -897,7 +912,7 @@ class StopFuturesOrder(FuturesOrder):
         self,
         bar: bar.Bar,
         liquidity_strategy: liquidity.LiquidityStrategy,
-        orders: Sequence[FuturesOrder] = [],
+        orders: Sequence[Order] = [],
     ) -> Dict[str, Decimal]:
         # No partial fills for stop orders.
         if self.quantity_pending > liquidity_strategy.available_liquidity:
@@ -908,7 +923,7 @@ class StopFuturesOrder(FuturesOrder):
             )
             return {}
 
-        price = None
+        price = Decimal(0)
         quantity = self.quantity_pending
         base_sign = helpers.get_base_sign_for_operation(self.operation)
         if self.operation == OrderOperation.BUY:
