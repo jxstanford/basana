@@ -21,7 +21,7 @@ import abc
 from basana.backtesting import errors, orders
 from basana.core import helpers
 from basana.core.enums import OrderOperation
-from basana.core.pair import Pair, PairInfo, ContractInfo, Contract
+from basana.core.pair import Pair, PairInfo, Contract
 
 
 class ExchangeOrder(metaclass=abc.ABCMeta):
@@ -287,7 +287,6 @@ class FuturesExchangeOrder(ExchangeOrder):
 
     def validate(self, contract_info: PairInfo):
         assert isinstance(self._pair, Contract)
-        assert isinstance(contract_info, ContractInfo)
         if self.quantity <= Decimal(0):
             raise errors.Error("Amount must be > 0")
         if self.quantity != helpers.truncate_decimal(
@@ -298,6 +297,62 @@ class FuturesExchangeOrder(ExchangeOrder):
                     self.quantity, contract_info.base_precision
                 )
             )
+
+
+class MarketBracketFuturesOrder(FuturesExchangeOrder):
+    """Futures exchange market bracket order request.
+
+    A market bracket order is an order to buy or sell a stock at the best available price.
+    Generally, this type of order will be executed immediately. However, the price at which a market order will be
+    executed is not guaranteed.
+    """
+
+    def __init__(
+        self,
+        operation: OrderOperation,
+        contract: Contract,
+        quantity: Decimal,
+        stop_loss_price: Decimal,
+        take_profit_price: Decimal,
+    ):
+        super().__init__(operation, contract, quantity)
+        self._stop_loss_price = stop_loss_price
+        self._take_profit_price = take_profit_price
+
+    @property
+    def stop_loss_price(self) -> Decimal:
+        return self._stop_loss_price
+
+    @property
+    def take_profit_price(self) -> Decimal:
+        return self._take_profit_price
+
+    def validate(self, contract_info: PairInfo):
+        super().validate(contract_info)
+        if self.stop_loss_price <= Decimal(0):
+            raise errors.Error("Stop price must be > 0")
+        if self.take_profit_price <= Decimal(0):
+            raise errors.Error("Limit price must be > 0")
+
+    def get_estimated_fill_price(self) -> Optional[Decimal]:
+        # It will be the market price, so we can't tell right now.
+        return None
+
+    def create_order(
+        self, id: str, opening_quantity=Decimal(0), closing_quantity=Decimal(0)
+    ) -> orders.Order:
+        assert isinstance(self._pair, Contract)
+        return orders.MarketBracketFuturesOrder(
+            id,
+            self.operation,
+            self.contract,
+            self.quantity,
+            orders.OrderState.OPEN,
+            opening_quantity,
+            closing_quantity,
+            self._stop_loss_price,
+            self._take_profit_price,
+        )
 
 
 class MarketFuturesOrder(FuturesExchangeOrder):
@@ -355,20 +410,9 @@ class LimitFuturesOrder(FuturesExchangeOrder):
         return self._limit_price
 
     def validate(self, contract_info: PairInfo):
-        assert isinstance(contract_info, ContractInfo)
         super().validate(contract_info)
         if self.limit_price <= Decimal(0):
             raise errors.Error("Limit price must be > 0")
-        if self.limit_price != helpers.round_decimal_to_increment(
-            self.limit_price,
-            Decimal(contract_info.price_increment),
-            contract_info.quote_precision,
-        ):
-            raise errors.Error(
-                "{} is not a multiple of {}".format(
-                    self.limit_price, contract_info.price_increment
-                )
-            )
 
     def get_estimated_fill_price(self) -> Optional[Decimal]:
         # It will be the limit price or a better one.
@@ -417,20 +461,9 @@ class StopFuturesOrder(FuturesExchangeOrder):
         return self._stop_price
 
     def validate(self, contract_info: PairInfo):
-        assert isinstance(contract_info, ContractInfo)
         super().validate(contract_info)
         if self.stop_price <= Decimal(0):
             raise errors.Error("Stop price must be > 0")
-        if self.stop_price != helpers.round_decimal_to_increment(
-            self.stop_price,
-            Decimal(contract_info.price_increment),
-            contract_info.quote_precision,
-        ):
-            raise errors.Error(
-                "{} is not a multiple of {}".format(
-                    self.stop_price, contract_info.price_increment
-                )
-            )
 
     def get_estimated_fill_price(self) -> Optional[Decimal]:
         # It should be around the stop price, or at least we hope so.

@@ -85,9 +85,13 @@ class Percentage(FeeStrategy):
 class PerContractFee(FeeStrategy):
     """This strategy applies no fees to the trades."""
 
-    def __init__(self, fee: Decimal):
+    def __init__(self, fee: float):
         assert fee >= 0, f"Invalid fee amount {fee}"
-        self._fee = fee
+        self._fee = Decimal(fee)
+
+    @property
+    def fee(self) -> Decimal:
+        return self._fee
 
     def calculate_fees(
         self, order: orders.Order, balance_updates: Dict[str, Decimal]

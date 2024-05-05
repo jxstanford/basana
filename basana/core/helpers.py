@@ -141,20 +141,5 @@ def truncate_decimal(value: Decimal, precision: int) -> Decimal:
     return round_decimal(value, precision, rounding=decimal.ROUND_DOWN)
 
 
-def round_decimal_to_increment(
-    value: Decimal, increment: Decimal, precision: int
-) -> Decimal:
-    """Rounds a float value to the nearest multiple of the increment.
-
-    :param value: The value to round.
-    :param increment: The increment to round to.
-    :param precision: The number of digits after the decimal point.
-    :returns: The rounded value.
-    """
-
-    rounded_value = round(value / increment) * increment
-    return truncate_decimal(rounded_value, precision)
-
-
 def deprecation(message: str):
     warnings.warn(message, DeprecationWarning, stacklevel=2)

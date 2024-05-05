@@ -26,7 +26,7 @@ import pytest
 from .helpers import abs_data_path, safe_round
 from basana.backtesting import exchange, fees, orders, requests
 from basana.core import bar, dt, event, helpers
-from basana.core.pair import Contract, ContractInfo
+from basana.core.pair import Contract, PairInfo
 from basana.external.yahoo import bars
 from basana.external.common.csv.bars import OHLCVTzBarSource
 
@@ -837,18 +837,6 @@ def test_order_requests(order_plan, backtesting_dispatcher):
             exchange.OrderOperation.BUY,
             Contract("ES", "USD", 9500, 50),
             Decimal(1),
-            Decimal("0.001"),
-        ),
-        requests.LimitFuturesOrder(
-            exchange.OrderOperation.BUY,
-            Contract("ES", "USD", 9500, 50),
-            Decimal(1),
-            Decimal("1.001"),
-        ),
-        requests.LimitFuturesOrder(
-            exchange.OrderOperation.BUY,
-            Contract("ES", "USD", 9500, 50),
-            Decimal(1),
             Decimal("-0.1"),
         ),
         # Stop order: Invalid amount/price.
@@ -863,18 +851,6 @@ def test_order_requests(order_plan, backtesting_dispatcher):
             Contract("ES", "USD", 9500, 50),
             Decimal(1),
             Decimal("0"),
-        ),
-        requests.StopFuturesOrder(
-            exchange.OrderOperation.BUY,
-            Contract("ES", "USD", 9500, 50),
-            Decimal(1),
-            Decimal("0.001"),
-        ),
-        requests.StopFuturesOrder(
-            exchange.OrderOperation.BUY,
-            Contract("ES", "USD", 9500, 50),
-            Decimal(1),
-            Decimal("1.001"),
         ),
         requests.StopFuturesOrder(
             exchange.OrderOperation.BUY,
@@ -920,7 +896,7 @@ def test_invalid_parameter(order_request, backtesting_dispatcher):
         },
         fee_strategy=fees.Percentage(percentage=Decimal("0.25")),
     )
-    e.set_contract_info(Contract("ES", "USD", 9500, 50), ContractInfo(0, 2, 0.25))
+    e.set_contract_info(Contract("ES", "USD", 9500, 50), PairInfo(0, 2))
 
     async def impl():
         with pytest.raises(exchange.Error):
@@ -994,7 +970,7 @@ def test_not_enough_balance(order_request, backtesting_dispatcher):
         },
         fee_strategy=fees.PerContractFee(fee=Decimal("5")),
     )
-    e.set_contract_info(Contract("ES", "USD", 9500, 50), ContractInfo(0, 2, 0.25))
+    e.set_contract_info(Contract("ES", "USD", 9500, 50), PairInfo(0, 2))
 
     async def impl():
         with pytest.raises(exchange.Error):
@@ -1077,7 +1053,11 @@ def test_liquidity_is_exhausted_and_order_is_canceled(backtesting_dispatcher):
 
 def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
     async def impl():
-        e = exchange.FuturesExchange(backtesting_dispatcher, {"USD": Decimal(1000)})
+        e = exchange.FuturesExchange(
+            backtesting_dispatcher,
+            {"USD": Decimal(1000)},
+            fee_strategy=fees.PerContractFee(5),
+        )
         c = Contract("ORCL", "USD", 0, 1)
 
         created_order_1 = await e.create_order(
@@ -1086,7 +1066,7 @@ def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
             )
         )
         assert (await e.get_balance("ORCL")).available == Decimal(0)
-        assert (await e.get_balance("USD")).available == Decimal(1000)
+        assert (await e.get_balance("USD")).available == Decimal(995)
 
         created_order_2 = await e.create_order(
             requests.LimitFuturesOrder(
@@ -1094,11 +1074,11 @@ def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
             )
         )
         assert (await e.get_balance("ORCL")).available == Decimal(0)
-        assert (await e.get_balance("USD")).available == Decimal(1000)
+        assert (await e.get_balance("USD")).available == Decimal(990)
 
         await e.cancel_order(created_order_2.id)
         assert (await e.get_balance("ORCL")).available == Decimal(0)
-        assert (await e.get_balance("USD")).available == Decimal(1000)
+        assert (await e.get_balance("USD")).available == Decimal(995)
 
         await e.cancel_order(created_order_1.id)
         assert (await e.get_balance("ORCL")).available == Decimal(0)
@@ -1118,17 +1098,17 @@ def test_contract_info(backtesting_dispatcher):
             {
                 "USD": Decimal("1e6"),
             },
-            fee_strategy=fees.Percentage(percentage=Decimal("0.25")),
+            fee_strategy=fees.PerContractFee(5),
         )
 
         contract_info = await e.get_contract_info(Contract("ORCL", "USD", 0, 1))
-        assert contract_info.base_precision == 2
+        assert contract_info.base_precision == 0
         assert contract_info.quote_precision == 2
 
-        e.set_contract_info(Contract("ORCL", "EUR", 0, 1), ContractInfo(0, 3, 0.25))
+        e.set_contract_info(Contract("ORCL", "EUR", 0, 1), PairInfo(100, 300))
         contract_info = await e.get_contract_info(Contract("ORCL", "EUR", 0, 1))
-        assert contract_info.base_precision == 0
-        assert contract_info.quote_precision == 3
+        assert contract_info.base_precision == 100
+        assert contract_info.quote_precision == 300
 
     asyncio.run(impl())
 
@@ -1143,7 +1123,9 @@ def test_order_info_not_found(backtesting_dispatcher):
 
 
 def test_bid_ask(backtesting_dispatcher):
-    e = exchange.FuturesExchange(backtesting_dispatcher, {})
+    e = exchange.FuturesExchange(
+        backtesting_dispatcher, {}, bid_ask_spread=Decimal("0.5")
+    )
 
     async def impl():
         c = Contract("ORCL", "USD", 0, 1)

@@ -5,7 +5,7 @@ from decimal import Decimal
 from basana.backtesting import exchange, liquidity, fees
 from basana.core import dt, bar
 from basana.core.enums import OrderOperation
-from basana.core.pair import Contract, ContractInfo
+from basana.core.pair import Contract, PairInfo
 from basana.backtesting.orders import (
     OrderState,
     MarketFuturesOrder,
@@ -321,7 +321,7 @@ def test_get_balance_updates_with_infinite_liquidity(
         backtesting_dispatcher, {}, fee_strategy=fees.PerContractFee(Decimal("4.80"))
     )  # Just for rounding purposes
     p = Contract("ES", "USD", 9500, 50)
-    e.set_pair_info(p, ContractInfo(0, 2, 0.25))
+    e.set_pair_info(p, PairInfo(0, 2))
 
     ls = liquidity.InfiniteLiquidity()
     b = bar.Bar(
@@ -398,7 +398,7 @@ def test_get_balance_updates_with_finite_liquidity(
 ):
     e = exchange.Exchange(backtesting_dispatcher, {})  # Just for rounding purposes
     p = Contract("ES", "USD", 9500, 50)
-    e.set_pair_info(p, ContractInfo(0, 2, 0.25))
+    e.set_pair_info(p, PairInfo(0, 2))
 
     ls = liquidity.VolumeShareImpact()
     b = bar.Bar(

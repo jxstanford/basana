@@ -69,18 +69,3 @@ class Contract(Pair):
 
     #: The multiplier of the contract.
     multiplier: int
-
-
-@dataclasses.dataclass(frozen=True)
-class ContractInfo(PairInfo):
-    """Information about a futures contract.
-
-    This class inherits from the PairInfo class and provides additional details specific to futures contracts..
-
-    Attributes:
-        base_precision (int): The precision for the base symbol. Defaults to 2.
-        quote_precision (int): The precision for the quote symbol. Defaults to 2.
-    """
-
-    #: The minimum price increment of the contract.
-    price_increment: float

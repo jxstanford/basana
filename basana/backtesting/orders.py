@@ -752,6 +752,36 @@ class FuturesOrder(Order, ABC):
         return pnl
 
 
+class MarketBracketFuturesOrder(FuturesOrder):
+    def __init__(
+        self,
+        id: str,
+        operation: OrderOperation,
+        contract: Contract,
+        quantity: Decimal,
+        state: OrderState,
+        opening_quantity: Decimal = Decimal(0),
+        closing_quantity: Decimal = Decimal(0),
+        take_profit_price: Decimal = Decimal(0),
+        stop_loss_price: Decimal = Decimal(0),
+    ):
+        super().__init__(
+            id, operation, contract, quantity, state, opening_quantity, closing_quantity
+        )
+
+    def not_filled(self):
+        # Fill or kill market orders.
+        self.cancel()
+
+    def get_balance_updates(
+        self,
+        bar: bar.Bar,
+        liquidity_strategy: liquidity.LiquidityStrategy,
+        orders: Sequence[Order] = [],
+    ) -> Dict[str, Decimal]:
+        raise NotImplementedError()
+
+
 class MarketFuturesOrder(FuturesOrder):
     def __init__(
         self,

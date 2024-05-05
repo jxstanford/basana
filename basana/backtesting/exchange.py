@@ -44,7 +44,7 @@ from basana.backtesting import (
 from basana.backtesting import helpers as bt_helpers
 from basana.core import bar, dispatcher, enums, event, logs
 from basana.core import helpers as core_helpers
-from basana.core.pair import Pair, PairInfo, ContractInfo, Contract
+from basana.core.pair import Pair, PairInfo, Contract
 
 logger = logging.getLogger(__name__)
 
@@ -648,11 +648,10 @@ class FuturesExchange(Exchange):
         dispatcher: dispatcher.EventDispatcher,
         initial_balances: Dict[str, Decimal],
         liquidity_strategy_factory: LiquidityStrategyFactory = liquidity.VolumeShareImpact,
-        fee_strategy: fees.FeeStrategy = fees.NoFee(),
-        default_contract_info: ContractInfo = ContractInfo(
-            base_precision=2, quote_precision=2, price_increment=0.25
-        ),
-        bid_ask_spread: Decimal = Decimal("0.5"),
+        fee_strategy: fees.FeeStrategy = fees.PerContractFee(5),
+        default_contract_info: PairInfo = PairInfo(base_precision=0, quote_precision=2),
+        # TODO: take float and convert to decimal for private var
+        bid_ask_spread: Decimal = Decimal("0.25"),
     ):
         super().__init__(
             dispatcher,
@@ -663,17 +662,17 @@ class FuturesExchange(Exchange):
             bid_ask_spread,
         )
         self._balances = account_balances.FuturesAccountBalances(initial_balances)
-        self._contracts_info: Dict[Contract, ContractInfo] = {}
+        self._contracts_info: Dict[Contract, PairInfo] = {}
         self._default_contract_info = default_contract_info
 
-    async def get_contract_info(self, contract: Contract) -> ContractInfo:
+    async def get_contract_info(self, contract: Contract) -> PairInfo:
         """Returns information about a futures contract.
 
         :param contract: The futures contract.
         """
         return self._get_contract_info(contract)
 
-    def set_contract_info(self, contract: Contract, contract_info: ContractInfo):
+    def set_contract_info(self, contract: Contract, contract_info: PairInfo):
         """Set information about a trading pair.
 
         :param contract: The futures contract.
@@ -681,7 +680,7 @@ class FuturesExchange(Exchange):
         """
         self._contracts_info[contract] = contract_info
 
-    def _get_contract_info(self, contract: Contract) -> ContractInfo:
+    def _get_contract_info(self, contract: Contract) -> PairInfo:
 
         ret = self._contracts_info.get(contract)
         if ret is None:
@@ -721,6 +720,34 @@ class FuturesExchange(Exchange):
         self._balances.order_accepted(order, required_balances)
 
         return CreatedOrder(id=order.id)
+
+    async def create_market_bracket_order(
+        self,
+        operation: OrderOperation,
+        contract: Pair,
+        quantity: Decimal,
+        take_profit_price: Decimal,
+        stop_loss_price: Decimal,
+    ) -> CreatedOrder:
+        """Creates a market bracket order.
+
+        A market bracket order is an order to immediately buy or sell at the best available price with a take profit
+        and stop loss orders attached.
+
+        If the order can't be created an :class:`Error` will be raised.
+
+        :param operation: The order operation.
+        :param contract: The contract to trade.
+        :param quantity: The base amount to buy/sell.
+        :param take_profit_price: The take profit price.
+        :param stop_loss_price: The stop loss price.
+        """
+        assert isinstance(contract, Contract)
+        return await self.create_order(
+            requests.MarketBracketFuturesOrder(
+                operation, contract, quantity, take_profit_price, stop_loss_price
+            )
+        )
 
     async def create_market_order(
         self, operation: OrderOperation, contract: Pair, quantity: Decimal
