@@ -825,6 +825,9 @@ class FuturesExchange(Exchange):
         For futures, this is limited to fees. Margin requirements are treated separately from account balances.
         """
         assert isinstance(order_request, requests.FuturesExchangeOrder)
+
+        # estimated_balance_updates is used to calculate the fees, but for futures, we won't need a required balance
+        # for the base symbol.
         base_sign = bt_helpers.get_base_sign_for_operation(order_request.operation)
         estimated_balance_updates = {
             order_request.contract.base_symbol: order_request.quantity * base_sign
@@ -832,18 +835,13 @@ class FuturesExchange(Exchange):
 
         # Calculate fees.
         fees = {}
-        if len(estimated_balance_updates) == 2:
+        if len(estimated_balance_updates) > 0:
             order = order_request.create_order("temporary")
             fees = self._fee_strategy.calculate_fees(order, estimated_balance_updates)
-        estimated_balance_updates = bt_helpers.add_amounts(
-            estimated_balance_updates, fees
-        )
 
         # Return only negative balance updates as required balances.
         return {
-            symbol: -amount
-            for symbol, amount in estimated_balance_updates.items()
-            if amount < Decimal(0)
+            symbol: -amount for symbol, amount in fees.items() if amount < Decimal(0)
         }
 
     def _process_order(

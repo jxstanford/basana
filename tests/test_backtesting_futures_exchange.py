@@ -937,12 +937,21 @@ def test_invalid_parameter(order_request, backtesting_dispatcher):
     "order_request",
     [
         requests.MarketFuturesOrder(
-            exchange.OrderOperation.SELL, Contract("ES", "USD", 0, 1), Decimal(1)
+            exchange.OrderOperation.BUY, Contract("ES", "USD", 9500, 50), Decimal(1000)
+        ),
+        requests.MarketFuturesOrder(
+            exchange.OrderOperation.SELL, Contract("ES", "USD", 9500, 50), Decimal(1000)
+        ),
+        requests.MarketFuturesOrder(
+            exchange.OrderOperation.BUY, Contract("ES", "USD", 9500, 50), Decimal(1)
+        ),
+        requests.MarketFuturesOrder(
+            exchange.OrderOperation.SELL, Contract("ES", "USD", 9500, 50), Decimal(1)
         ),
         requests.LimitFuturesOrder(
             exchange.OrderOperation.BUY,
             Contract("ES", "USD", 9500, 50),
-            Decimal(1000),
+            Decimal(1),
             Decimal("1"),
         ),
         requests.LimitFuturesOrder(
@@ -954,7 +963,7 @@ def test_invalid_parameter(order_request, backtesting_dispatcher):
         requests.StopFuturesOrder(
             exchange.OrderOperation.BUY,
             Contract("ES", "USD", 9500, 50),
-            Decimal(1000),
+            Decimal(1),
             Decimal("1"),
         ),
         requests.StopFuturesOrder(
@@ -962,6 +971,12 @@ def test_invalid_parameter(order_request, backtesting_dispatcher):
             Contract("ES", "USD", 9500, 50),
             Decimal(1),
             Decimal("1"),
+        ),
+        requests.MarketFuturesOrder(
+            exchange.OrderOperation.BUY, Contract("ES", "USD", 9500, 50), Decimal(2)
+        ),
+        requests.MarketFuturesOrder(
+            exchange.OrderOperation.SELL, Contract("ES", "USD", 9500, 50), Decimal(2)
         ),
         # requests.StopLimitOrder(
         #     exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1000), Decimal("1"), Decimal("1")
@@ -975,7 +990,7 @@ def test_not_enough_balance(order_request, backtesting_dispatcher):
     e = exchange.FuturesExchange(
         backtesting_dispatcher,
         {
-            "USD": Decimal("1e3"),
+            "USD": Decimal("9504"),
         },
         fee_strategy=fees.PerContractFee(fee=Decimal("5")),
     )
