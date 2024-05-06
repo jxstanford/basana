@@ -147,7 +147,10 @@ class PairLineChart(LineChart):
         for order in orders:
             for fill in order.fills:
                 assert isinstance(fill, FuturesFill)
-                ret.add_value(fill.when, fill.price if fill.price else Decimal(0))
+                ret.add_value(
+                    fill.when,
+                    fill.price if fill.price else Decimal(0),
+                )
         return ret
 
     async def _on_bar_event(self, bar_event: bar.BarEvent):

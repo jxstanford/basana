@@ -111,11 +111,11 @@ async def main():
     )
 
     # Connect the strategy to the bar events from the exchange.
-    strategy = bbands.Strategy(event_dispatcher, 10, 1.5)
+    strategy = bbands.Strategy(event_dispatcher, 23, 2)
     exchange.subscribe_to_bar_events(contract, strategy.on_bar_event)
 
     # Connect the position manager to the strategy signals.
-    position_mgr = PositionManager(exchange, Decimal(1), Decimal(1))
+    position_mgr = PositionManager(exchange, Decimal(1), Decimal(5))
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
 
     # Load bars from CSV files.
@@ -133,8 +133,6 @@ async def main():
     chart.add_pair_indicator(
         "Lower", contract, lambda _: strategy.bb[-1].lb if len(strategy.bb) else None
     )
-
-    chart.add_balance("ES")
 
     chart.add_portfolio_value("USD")
 
