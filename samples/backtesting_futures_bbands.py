@@ -22,9 +22,9 @@ from decimal import Decimal
 import asyncio
 import logging
 
-from basana.backtesting import charts
+from basana.backtesting import futures_charts, liquidity
 from basana.backtesting import fees
-from basana.core.pair import Contract, ContractInfo
+from basana.core.pair import Contract, PairInfo
 from basana.external.common.csv.bars import OHLCVTzBarSource
 import basana as bs
 import basana.backtesting.exchange as backtesting_exchange
@@ -69,6 +69,10 @@ class PositionManager:
             logging.error(e)
 
     async def _adjusted_order_size(self, trading_signal: bs.TradingSignal) -> Decimal:
+        """Calculates the order size based on the current position and the target position size.
+        If the current position is below the target position size, the order size will be increased
+        to reach the target position size. If the current position is above the target position size,
+        the order size will be decreased to reach the target position size."""
         operation = trading_signal.operation
         symbol = trading_signal.pair.base_symbol
         balance = await self._exchange.get_balance(symbol)
@@ -97,11 +101,13 @@ async def main():
     exchange = backtesting_exchange.FuturesExchange(
         event_dispatcher,
         initial_balances={"ES": Decimal(0), "USD": Decimal(100_000)},
-        fee_strategy=fees.PerContractFee(Decimal(5.00)),
+        fee_strategy=fees.PerContractFee(5),
+        liquidity_strategy_factory=liquidity.InfiniteLiquidity,
+        bid_ask_spread=Decimal(0.25),
     )
     exchange.set_contract_info(
         contract,
-        ContractInfo(base_precision=0, quote_precision=2, price_increment=0.25),
+        PairInfo(base_precision=0, quote_precision=2),
     )
 
     # Connect the strategy to the bar events from the exchange.
@@ -116,7 +122,7 @@ async def main():
     exchange.add_bar_source(OHLCVTzBarSource(contract, "data/ES_0102224_rth.csv", "1m"))
 
     # Setup chart.
-    chart = charts.LineCharts(exchange)
+    chart = futures_charts.LineCharts(exchange)
     chart.add_pair(contract)
     chart.add_pair_indicator(
         "Upper", contract, lambda _: strategy.bb[-1].ub if len(strategy.bb) else None
@@ -127,7 +133,12 @@ async def main():
     chart.add_pair_indicator(
         "Lower", contract, lambda _: strategy.bb[-1].lb if len(strategy.bb) else None
     )
+
+    chart.add_balance("ES")
+
     chart.add_portfolio_value("USD")
+
+    chart.add_balance("ES")
 
     # Run the backtest.
     await event_dispatcher.run()

@@ -882,7 +882,7 @@ class FuturesExchange(Exchange):
             # Update balances to release any pending hold if the order is no longer open.
             if not order.is_open:
                 self._balances.order_updated(order, {})
-                logger.debug(
+                logger.info(
                     logs.StructuredMessage(
                         "Order not filled", order_id=order.id, order_state=order.state
                     )
@@ -890,8 +890,6 @@ class FuturesExchange(Exchange):
 
         assert isinstance(order, orders.FuturesOrder)
         prev_state = order.state
-        # Unlike the parent order class, get_balance_updates for FuturesOrders return a base symbol quantity and an
-        # order price
         balance_updates = order.get_balance_updates(
             bar_event.bar, liquidity_strategy, self._orders.get_all_orders()
         )
@@ -935,8 +933,7 @@ class FuturesExchange(Exchange):
                 symbol
             ) + self._balances.get_balance_on_hold_for_order(order.id, symbol)
             final_balance = available_balance + balance_update
-            # TODO: this will check the base symbol, which could be negative. Should only check the quote symbol?
-            if final_balance < Decimal(0):
+            if final_balance < Decimal(0) and symbol == order.pair.quote_symbol:
                 balances_short = True
                 logger.debug(
                     logs.StructuredMessage(
@@ -956,6 +953,16 @@ class FuturesExchange(Exchange):
             )
             # Update the order.
             order.add_fill(bar_event.when, balance_updates, fees)
+            logger.info(
+                logs.StructuredMessage(
+                    "Order filled",
+                    order_id=order.id,
+                    when=bar_event.when,
+                    price=order._working_fill_price,
+                    final_updates=final_updates,
+                    order_state=order.state,
+                )
+            )
             # Update balances.
             self._balances.order_updated(order, final_updates)
             logger.debug(

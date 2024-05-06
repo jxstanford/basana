@@ -748,7 +748,7 @@ class FuturesOrder(Order, ABC):
                     if fill_price is not None
                 ]
             )
-            pnl = pnl * Decimal(self.contract.multiplier)
+        pnl = pnl * Decimal(self.contract.multiplier)
         return pnl
 
 

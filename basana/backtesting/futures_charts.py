@@ -98,7 +98,8 @@ class PairLineChart(LineChart):
 
         # Add a trace with buy prices.
         if self._include_buys:
-            x, y = self._get_order_fills(OrderOperation.BUY).get_x_y()
+            fills = self._get_order_fills(OrderOperation.BUY)
+            x, y = fills.get_x_y()
             figure.add_trace(
                 go.Scatter(
                     x=x,
@@ -113,7 +114,8 @@ class PairLineChart(LineChart):
 
         # Add a trace with sell prices.
         if self._include_sells:
-            x, y = self._get_order_fills(OrderOperation.SELL).get_x_y()
+            fills = self._get_order_fills(OrderOperation.SELL)
+            x, y = fills.get_x_y()
             figure.add_trace(
                 go.Scatter(
                     x=x,
@@ -144,12 +146,7 @@ class PairLineChart(LineChart):
         pair_info = self._exchange._get_pair_info(self._pair)
         for order in orders:
             for fill in order.fills:
-                base_amount = fill.balance_updates[order.pair.base_symbol]
-                quote_amount = fill.balance_updates[order.pair.quote_symbol]
-                price = -helpers.truncate_decimal(
-                    quote_amount / base_amount, pair_info.quote_precision
-                )
-                ret.add_value(fill.when, price)
+                ret.add_value(fill.when, fill.price)
         return ret
 
     async def _on_bar_event(self, bar_event: bar.BarEvent):
