@@ -26,6 +26,7 @@ import collections
 import logging
 
 from basana.backtesting.exchange import Exchange
+from basana.backtesting.orders import FuturesFill
 from basana.core import bar, event, logs, helpers
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
@@ -143,10 +144,10 @@ class PairLineChart(LineChart):
             lambda order: order.pair == self._pair and order.operation == op,
             self._exchange._get_all_orders(),
         )
-        pair_info = self._exchange._get_pair_info(self._pair)
         for order in orders:
             for fill in order.fills:
-                ret.add_value(fill.when, fill.price)
+                assert isinstance(fill, FuturesFill)
+                ret.add_value(fill.when, fill.price if fill.price else Decimal(0))
         return ret
 
     async def _on_bar_event(self, bar_event: bar.BarEvent):
